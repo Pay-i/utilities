@@ -1,0 +1,264 @@
+{
+  "name": "Pay-i Multi-Provider Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-001",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 400],
+      "webhookId": "payi-test-chat"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "agent-openai",
+      "name": "AI Agent (OpenAI)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [600, 200],
+      "parameters": {
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are a helpful test assistant. When asked to do math, use the calculator tool. Always state which model you are at the start of your response."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "options": {}
+      },
+      "id": "model-openai",
+      "name": "Pay-i OpenAI",
+      "type": "n8n-nodes-payi.lmChatPayi",
+      "typeVersion": 1,
+      "position": [400, 400],
+      "credentials": {
+        "payiApi": {
+          "id": "",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "agent-anthropic",
+      "name": "AI Agent (Anthropic)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [600, 600],
+      "parameters": {
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are a helpful test assistant. When asked to do math, use the calculator tool. Always state which model you are at the start of your response."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "claude-sonnet-4-20250514",
+        "providerApiKey": "",
+        "options": {
+          "maxTokensToSample": 2048,
+          "temperature": 0.7
+        }
+      },
+      "id": "model-anthropic",
+      "name": "Pay-i Anthropic",
+      "type": "n8n-nodes-payi.lmChatPayiAnthropic",
+      "typeVersion": 1,
+      "position": [400, 800],
+      "credentials": {
+        "payiApi": {
+          "id": "",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "agent-azure",
+      "name": "AI Agent (Azure)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [600, 1000],
+      "parameters": {
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are a helpful test assistant. When asked to do math, use the calculator tool. Always state which model you are at the start of your response."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "deploymentName": "",
+        "apiVersion": "2024-08-01-preview",
+        "providerApiKey": "",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "model-azure",
+      "name": "Pay-i Azure OpenAI",
+      "type": "n8n-nodes-payi.lmChatPayiAzure",
+      "typeVersion": 1,
+      "position": [400, 1200],
+      "credentials": {
+        "payiApi": {
+          "id": "",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "agent-bedrock",
+      "name": "AI Agent (Bedrock)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [600, 1400],
+      "parameters": {
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are a helpful test assistant. When asked to do math, use the calculator tool. Always state which model you are at the start of your response."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "region": "us-east-1",
+        "awsAccessKeyId": "",
+        "awsSecretAccessKey": "",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "model-bedrock",
+      "name": "Pay-i Bedrock",
+      "type": "n8n-nodes-payi.lmChatPayiBedrock",
+      "typeVersion": 1,
+      "position": [400, 1600],
+      "credentials": {
+        "payiApi": {
+          "id": "",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "calc-openai",
+      "name": "Calculator (OpenAI)",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {},
+      "id": "calc-anthropic",
+      "name": "Calculator (Anthropic)",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [400, 700]
+    },
+    {
+      "parameters": {},
+      "id": "calc-azure",
+      "name": "Calculator (Azure)",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [400, 1100]
+    },
+    {
+      "parameters": {},
+      "id": "calc-bedrock",
+      "name": "Calculator (Bedrock)",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [400, 1500]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          { "node": "AI Agent (OpenAI)", "type": "main", "index": 0 },
+          { "node": "AI Agent (Anthropic)", "type": "main", "index": 0 },
+          { "node": "AI Agent (Azure)", "type": "main", "index": 0 },
+          { "node": "AI Agent (Bedrock)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Pay-i OpenAI": {
+      "ai_languageModel": [
+        [
+          { "node": "AI Agent (OpenAI)", "type": "ai_languageModel", "index": 0 }
+        ]
+      ]
+    },
+    "Pay-i Anthropic": {
+      "ai_languageModel": [
+        [
+          { "node": "AI Agent (Anthropic)", "type": "ai_languageModel", "index": 0 }
+        ]
+      ]
+    },
+    "Pay-i Azure OpenAI": {
+      "ai_languageModel": [
+        [
+          { "node": "AI Agent (Azure)", "type": "ai_languageModel", "index": 0 }
+        ]
+      ]
+    },
+    "Pay-i Bedrock": {
+      "ai_languageModel": [
+        [
+          { "node": "AI Agent (Bedrock)", "type": "ai_languageModel", "index": 0 }
+        ]
+      ]
+    },
+    "Calculator (OpenAI)": {
+      "ai_tool": [
+        [
+          { "node": "AI Agent (OpenAI)", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Calculator (Anthropic)": {
+      "ai_tool": [
+        [
+          { "node": "AI Agent (Anthropic)", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Calculator (Azure)": {
+      "ai_tool": [
+        [
+          { "node": "AI Agent (Azure)", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Calculator (Bedrock)": {
+      "ai_tool": [
+        [
+          { "node": "AI Agent (Bedrock)", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {}
+}

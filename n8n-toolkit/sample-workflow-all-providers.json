@@ -1,0 +1,171 @@
+{
+  "name": "Multi-Provider LLM Workflow",
+  "nodes": [
+    {
+      "id": "trigger-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400],
+      "parameters": {}
+    },
+    {
+      "id": "openai-chat-001",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [500, 200],
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1024,
+          "topP": 0.95
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "cred-openai",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "id": "anthropic-chat-001",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [500, 400],
+      "parameters": {
+        "model": "claude-sonnet-4-20250514",
+        "options": {
+          "temperature": 0.5,
+          "maxTokensToSample": 2048
+        }
+      },
+      "credentials": {
+        "anthropicApi": {
+          "id": "cred-anthropic",
+          "name": "Anthropic Account"
+        }
+      }
+    },
+    {
+      "id": "azure-chat-001",
+      "name": "Azure OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [500, 600],
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "cred-azure",
+          "name": "Azure OpenAI"
+        }
+      }
+    },
+    {
+      "id": "bedrock-chat-001",
+      "name": "AWS Bedrock Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1,
+      "position": [500, 800],
+      "parameters": {
+        "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "options": {
+          "temperature": 0.6
+        }
+      },
+      "credentials": {
+        "aws": {
+          "id": "cred-aws",
+          "name": "AWS Bedrock"
+        }
+      }
+    },
+    {
+      "id": "openai-app-001",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openai",
+      "typeVersion": 1,
+      "position": [800, 200],
+      "parameters": {
+        "model": "gpt-4o",
+        "messages": "[{\"role\": \"system\", \"content\": \"You are a helpful assistant.\"}, {\"role\": \"user\", \"content\": \"Summarize the input data.\"}]"
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "cred-openai",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "id": "agent-001",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [800, 400],
+      "parameters": {
+        "text": "={{ $('OpenAI Chat Model').item.json.output }}",
+        "systemMessage": "You are a support agent.",
+        "fallback": "={{ $('Anthropic Chat Model').item.json.text }}"
+      }
+    },
+    {
+      "id": "output-001",
+      "name": "Set Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1100, 400],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {"node": "OpenAI", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {"node": "AI Agent", "type": "ai_languageModel", "index": 0}
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {"node": "Set Output", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {"node": "Set Output", "type": "main", "index": 0}
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "pinData": {}
+}

@@ -1,0 +1,164 @@
+{
+  "name": "Pay-i Provider Pipeline Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1000000-0000-0000-0000-000000000001",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 400],
+      "webhookId": "payi-pipeline-test"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "providerApiKey": "",
+        "options": {}
+      },
+      "id": "a1000000-0000-0000-0000-000000000010",
+      "name": "Pay-i OpenAI Model",
+      "type": "n8n-nodes-payi.lmChatPayi",
+      "typeVersion": 1,
+      "position": [200, 200],
+      "credentials": {
+        "payiApi": {
+          "id": "",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are a research assistant. Given a topic, produce a concise 3-point outline for a short article. Output ONLY the outline, numbered 1-3."
+        }
+      },
+      "id": "a1000000-0000-0000-0000-000000000011",
+      "name": "Step 1 - Outline (OpenAI)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [400, 400]
+    },
+    {
+      "parameters": {
+        "model": "claude-sonnet-4-6",
+        "providerApiKey": "",
+        "options": {
+          "maxTokensToSample": 2048
+        }
+      },
+      "id": "a1000000-0000-0000-0000-000000000020",
+      "name": "Pay-i Anthropic Model",
+      "type": "n8n-nodes-payi.lmChatPayiAnthropic",
+      "typeVersion": 1,
+      "position": [600, 200],
+      "credentials": {
+        "payiApi": {
+          "id": "",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Write a short article (3 paragraphs) based on this outline:\n\n{{ $json.output }}",
+        "options": {
+          "systemMessage": "You are a skilled writer. Expand the given outline into a well-written short article with exactly 3 paragraphs. Be concise but informative."
+        }
+      },
+      "id": "a1000000-0000-0000-0000-000000000021",
+      "name": "Step 2 - Write (Anthropic)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "outline",
+              "value": "={{ $('Step 1 - Outline (OpenAI)').item.json.output }}"
+            },
+            {
+              "name": "article",
+              "value": "={{ $('Step 2 - Write (Anthropic)').item.json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1000000-0000-0000-0000-000000000030",
+      "name": "Collect Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Step 1 - Outline (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pay-i OpenAI Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Step 1 - Outline (OpenAI)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1 - Outline (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Step 2 - Write (Anthropic)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pay-i Anthropic Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Step 2 - Write (Anthropic)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2 - Write (Anthropic)": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {}
+}

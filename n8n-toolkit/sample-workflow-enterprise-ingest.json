@@ -1,0 +1,553 @@
+{
+  "name": "Enterprise Ingest Coverage Workflow",
+  "id": "wf-enterprise-ingest",
+  "nodes": [
+    {
+      "id": "trigger-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [120, 460],
+      "parameters": {}
+    },
+    {
+      "id": "native-openai-chat-001",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [420, 140],
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "options": {
+          "temperature": 0.4,
+          "maxTokens": 1200,
+          "topP": 0.95
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "cred-openai-1",
+          "name": "OpenAI Primary"
+        }
+      }
+    },
+    {
+      "id": "native-anthropic-chat-001",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [420, 260],
+      "parameters": {
+        "model": "claude-sonnet-4-20250514",
+        "options": {
+          "temperature": 0.3,
+          "maxTokensToSample": 1600
+        }
+      },
+      "credentials": {
+        "anthropicApi": {
+          "id": "cred-anthropic-1",
+          "name": "Anthropic Primary"
+        }
+      }
+    },
+    {
+      "id": "native-azure-chat-001",
+      "name": "Azure OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [420, 380],
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "cred-azure-1",
+          "name": "Azure OpenAI Primary"
+        }
+      }
+    },
+    {
+      "id": "native-bedrock-chat-001",
+      "name": "AWS Bedrock Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1,
+      "position": [420, 500],
+      "parameters": {
+        "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "credentials": {
+        "aws": {
+          "id": "cred-aws-1",
+          "name": "AWS Bedrock Primary"
+        }
+      }
+    },
+    {
+      "id": "native-gemini-chat-001",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [420, 620],
+      "parameters": {
+        "model": "gemini-1.5-pro"
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "cred-google-1",
+          "name": "Google Gemini"
+        }
+      }
+    },
+    {
+      "id": "native-mistral-chat-001",
+      "name": "Mistral Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [420, 740],
+      "parameters": {
+        "model": "mistral-large-latest"
+      },
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "cred-mistral-1",
+          "name": "Mistral Primary"
+        }
+      }
+    },
+    {
+      "id": "native-openai-app-001",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openai",
+      "typeVersion": 1,
+      "position": [760, 140],
+      "parameters": {
+        "model": "gpt-4o",
+        "messages": "[{\"role\":\"system\",\"content\":\"You are a strict JSON assistant.\"},{\"role\":\"user\",\"content\":\"Summarize customer ticket cluster A.\"}]"
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "cred-openai-1",
+          "name": "OpenAI Primary"
+        }
+      }
+    },
+    {
+      "id": "payi-proxy-openai-001",
+      "name": "Pay-i Proxy OpenAI",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [760, 260],
+      "parameters": {
+        "provider": "openai",
+        "providerApiKey": "={{ $env.OPENAI_API_KEY }}",
+        "model": "gpt-4o-mini",
+        "messages": "[{\"role\":\"user\",\"content\":\"Generate product FAQ bullets.\"}]",
+        "useCaseName": "={{ $workflow.name }}",
+        "useCaseId": "={{ $execution.id }}",
+        "useCaseStep": "faq_generation",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": false
+      },
+      "credentials": {
+        "payiApi": {
+          "id": "cred-payi-1",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "id": "payi-proxy-anthropic-001",
+      "name": "Pay-i Proxy Anthropic",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [760, 380],
+      "parameters": {
+        "provider": "anthropic",
+        "providerApiKey": "={{ $env.ANTHROPIC_API_KEY }}",
+        "model": "claude-sonnet-4-20250514",
+        "messages": "[{\"role\":\"user\",\"content\":\"Classify these claims for policy compliance.\"}]",
+        "useCaseName": "risk_review",
+        "useCaseId": "={{ $execution.id }}",
+        "useCaseStep": "classification",
+        "includeCostData": true,
+        "returnFullResponse": true,
+        "debugLogging": false
+      },
+      "credentials": {
+        "payiApi": {
+          "id": "cred-payi-1",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "id": "payi-proxy-azure-001",
+      "name": "Pay-i Proxy Azure OpenAI",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [760, 500],
+      "parameters": {
+        "provider": "azureOpenai",
+        "providerApiKey": "={{ $env.AZURE_OPENAI_API_KEY }}",
+        "model": "gpt-4o",
+        "azureDeploymentName": "gpt-4o-prod",
+        "azureApiVersion": "2024-02-01",
+        "messages": "[{\"role\":\"user\",\"content\":\"Create release notes from these commit summaries.\"}]",
+        "useCaseName": "release_notes",
+        "useCaseId": "={{ $execution.id }}",
+        "useCaseStep": "drafting",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": false
+      },
+      "credentials": {
+        "payiApi": {
+          "id": "cred-payi-1",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "id": "payi-proxy-bedrock-001",
+      "name": "Pay-i Proxy Bedrock",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [760, 620],
+      "parameters": {
+        "provider": "bedrock",
+        "providerApiKey": "={{ $env.AWS_ACCESS_KEY_ID }}",
+        "bedrockSecretKey": "={{ $env.AWS_SECRET_ACCESS_KEY }}",
+        "bedrockSessionToken": "={{ $env.AWS_SESSION_TOKEN }}",
+        "bedrockRegion": "us-east-1",
+        "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "messages": "[{\"role\":\"user\",\"content\":\"Draft an internal runbook from these alerts.\"}]",
+        "useCaseName": "incident_runbook",
+        "useCaseId": "={{ $execution.id }}",
+        "useCaseStep": "draft",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": false
+      },
+      "credentials": {
+        "payiApi": {
+          "id": "cred-payi-1",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "id": "payi-chat-model-001",
+      "name": "Pay-i Chat Model",
+      "type": "n8n-nodes-payi.lmChatPayi",
+      "typeVersion": 1,
+      "position": [760, 740],
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "providerApiKey": "={{ $env.OPENAI_API_KEY }}",
+        "options": {
+          "temperature": 0.6,
+          "maxTokens": 900,
+          "maxRetries": 2
+        },
+        "useCaseName": "={{ $workflow.name }}",
+        "useCaseId": "={{ $execution.id }}",
+        "useCaseStep": "agent_reasoning"
+      },
+      "credentials": {
+        "payiApi": {
+          "id": "cred-payi-1",
+          "name": "Pay-i API"
+        }
+      }
+    },
+    {
+      "id": "agent-native-001",
+      "name": "AI Agent Native Mix",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "parameters": {
+        "text": "={{ $('OpenAI Chat Model').item.json.output || $(\"OpenAI\").item.json.choices[0].message.content }}",
+        "fallback": "={{ $('Anthropic Chat Model').item.json.text || $('Azure OpenAI Chat Model').item.json.output }}",
+        "notes": "={{ $('AWS Bedrock Chat Model').item.json.output }}"
+      }
+    },
+    {
+      "id": "agent-payi-001",
+      "name": "AI Agent Payi",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [1120, 620],
+      "parameters": {
+        "text": "={{ $('Pay-i Chat Model').item.json.output || $('Pay-i Proxy OpenAI').item.json.choices[0].message.content }}",
+        "fallback": "={{ $('Pay-i Proxy Anthropic').item.json.content[0].text || $('Pay-i Proxy Azure OpenAI').item.json.choices[0].message.content }}"
+      }
+    },
+    {
+      "id": "merge-001",
+      "name": "Merge Responses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1360, 460],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "set-output-001",
+      "name": "Set Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1600, 460],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "out-1",
+              "name": "native_openai_result",
+              "value": "={{ $('OpenAI').item.json }}",
+              "type": "string"
+            },
+            {
+              "id": "out-2",
+              "name": "payi_openai_cost",
+              "value": "={{ $('Pay-i Proxy OpenAI').item.json.payiCost || 'missing' }}",
+              "type": "string"
+            },
+            {
+              "id": "out-3",
+              "name": "payi_anthropic_cost",
+              "value": "={{ $('Pay-i Proxy Anthropic').item.json.payiCost || 'missing' }}",
+              "type": "string"
+            },
+            {
+              "id": "out-4",
+              "name": "payi_azure_cost",
+              "value": "={{ $('Pay-i Proxy Azure OpenAI').item.json.payiCost || 'missing' }}",
+              "type": "string"
+            },
+            {
+              "id": "out-5",
+              "name": "payi_bedrock_cost",
+              "value": "={{ $('Pay-i Proxy Bedrock').item.json.payiCost || 'missing' }}",
+              "type": "string"
+            },
+            {
+              "id": "out-6",
+              "name": "agent_native",
+              "value": "={{ $('AI Agent Native Mix').item.json }}",
+              "type": "string"
+            },
+            {
+              "id": "out-7",
+              "name": "agent_payi",
+              "value": "={{ $('AI Agent Payi').item.json }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pay-i Proxy OpenAI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pay-i Proxy Anthropic",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pay-i Proxy Azure OpenAI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pay-i Proxy Bedrock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Native Mix",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Native Mix",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Native Mix",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS Bedrock Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Native Mix",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pay-i Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Payi",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pay-i Proxy OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Pay-i Proxy Anthropic": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Pay-i Proxy Azure OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Pay-i Proxy Bedrock": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "AI Agent Native Mix": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "AI Agent Payi": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "Merge Responses": {
+      "main": [
+        [
+          {
+            "node": "Set Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "tags": [
+    {
+      "id": "tag-enterprise",
+      "name": "enterprise-fixture"
+    },
+    {
+      "id": "tag-llm",
+      "name": "llm-ingest-test"
+    }
+  ]
+}

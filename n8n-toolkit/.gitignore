@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+internal-plans/
+
+.DS_Store

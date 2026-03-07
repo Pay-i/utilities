@@ -1,7 +1,7 @@
-# payi-utilities
+# payi-utilities Additions and Updates 
 
 Utility repositories and tooling for Pay-i integrations.
-This is a new toolkit for customers who use N8N for faircode IT operations. See Docs for more Details.
+* March 04 2026 -- Initial release of an n8n migration and audit toolkit for routing AI provider calls through the Pay-i proxy.
 
 ## Repositories in this workspace
 

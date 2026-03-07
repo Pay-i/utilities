@@ -269,8 +269,9 @@ class TestBuildPayiChatModelNode(unittest.TestCase):
             OPENAI_CHAT_MODEL_NODE, PAYI_CRED, "sk-test", "Pay-i Chat Model"
         )
         params = result["parameters"]
-        self.assertEqual(params["useCaseName"], "={{ $workflow.name }}")
-        self.assertEqual(params["useCaseId"], "={{ $execution.id }}")
+        self.assertEqual(params["useCaseName"], "={{ $workflow.name.replaceAll(' ', '-') }}")
+        self.assertEqual(params["useCaseId"], "={{ 'openai/' + $parameter.model + '/' + $execution.id }}")
+        self.assertEqual(params["useCaseStep"], "={{ $node.name }}")
 
     def test_default_model_when_missing(self):
         node = {"id": "x", "parameters": {}, "position": [0, 0]}
@@ -386,8 +387,9 @@ class TestBuildPayiProxyNode(unittest.TestCase):
         result = migrate.build_payi_proxy_node(
             OPENAI_APP_NODE, PAYI_CRED, "sk-test", "Pay-i Proxy"
         )
-        self.assertEqual(result["parameters"]["useCaseName"], "={{ $workflow.name }}")
-        self.assertEqual(result["parameters"]["useCaseId"], "={{ $execution.id }}")
+        self.assertEqual(result["parameters"]["useCaseName"], "={{ $workflow.name.replaceAll(' ', '-') }}")
+        self.assertEqual(result["parameters"]["useCaseId"], "={{ 'openai/' + $parameter.model + '/' + $execution.id }}")
+        self.assertEqual(result["parameters"]["useCaseStep"], "={{ $node.name }}")
 
     def test_model_from_resource_locator_object(self):
         """n8n 2.x stores model as resourceLocator: {mode, value}."""
@@ -496,8 +498,9 @@ class TestBuildPayiChatModelAnthropicNode(unittest.TestCase):
             ANTHROPIC_CHAT_MODEL_NODE_V12, PAYI_CRED, "sk-ant-test", "Pay-i Anthropic Chat Model"
         )
         params = result["parameters"]
-        self.assertEqual(params["useCaseName"], "={{ $workflow.name }}")
-        self.assertEqual(params["useCaseId"], "={{ $execution.id }}")
+        self.assertEqual(params["useCaseName"], "={{ $workflow.name.replaceAll(' ', '-') }}")
+        self.assertEqual(params["useCaseId"], "={{ 'anthropic/' + $parameter.model + '/' + $execution.id }}")
+        self.assertEqual(params["useCaseStep"], "={{ $node.name }}")
 
     def test_no_plaintext_provider_key(self):
         """providerApiKey should NOT be in parameters — credentials are passed through."""
@@ -1678,8 +1681,9 @@ class TestBuildPayiChatModelAzureNode(unittest.TestCase):
         result = migrate.build_payi_chat_model_azure_node(
             AZURE_CHAT_MODEL_NODE, PAYI_CRED, "az-key", "Test"
         )
-        self.assertEqual(result["parameters"]["useCaseName"], "={{ $workflow.name }}")
-        self.assertEqual(result["parameters"]["useCaseId"], "={{ $execution.id }}")
+        self.assertEqual(result["parameters"]["useCaseName"], "={{ $workflow.name.replaceAll(' ', '-') }}")
+        self.assertEqual(result["parameters"]["useCaseId"], "={{ 'azure/' + $parameter.deploymentName + '/' + $execution.id }}")
+        self.assertEqual(result["parameters"]["useCaseStep"], "={{ $node.name }}")
 
     def test_no_plaintext_provider_key(self):
         """providerApiKey should NOT be in parameters — credentials are passed through."""
@@ -1693,6 +1697,16 @@ class TestBuildPayiChatModelAzureNode(unittest.TestCase):
         node["parameters"]["model"] = {"mode": "list", "value": "gpt-4-turbo"}
         result = migrate.build_payi_chat_model_azure_node(node, PAYI_CRED, "k", "Test")
         self.assertEqual(result["parameters"]["deploymentName"], "gpt-4-turbo")
+
+    def test_timeout_and_max_retries_preserved(self):
+        """timeout and maxRetries should be extracted from native options."""
+        node = copy.deepcopy(AZURE_CHAT_MODEL_NODE)
+        node["parameters"]["options"]["timeout"] = 30000
+        node["parameters"]["options"]["maxRetries"] = 3
+        result = migrate.build_payi_chat_model_azure_node(node, PAYI_CRED, "k", "Test")
+        opts = result["parameters"]["options"]
+        self.assertEqual(opts["timeout"], 30000)
+        self.assertEqual(opts["maxRetries"], 3)
 
 
 # ── Tests: build_payi_chat_model_bedrock_node ────────────────────────────────
@@ -1713,7 +1727,7 @@ BEDROCK_CHAT_MODEL_NODE = {
 class TestBuildPayiChatModelBedrockNode(unittest.TestCase):
     def test_basic_fields(self):
         result = migrate.build_payi_chat_model_bedrock_node(
-            BEDROCK_CHAT_MODEL_NODE, PAYI_CRED, {}, "Pay-i Bedrock Chat Model"
+            BEDROCK_CHAT_MODEL_NODE, PAYI_CRED, "", "Pay-i Bedrock Chat Model"
         )
         self.assertEqual(result["type"], "n8n-nodes-payi.lmChatPayiBedrock")
         self.assertEqual(result["parameters"]["model"], "anthropic.claude-3-sonnet-20240229-v1:0")
@@ -1724,7 +1738,7 @@ class TestBuildPayiChatModelBedrockNode(unittest.TestCase):
 
     def test_options_preserved(self):
         result = migrate.build_payi_chat_model_bedrock_node(
-            BEDROCK_CHAT_MODEL_NODE, PAYI_CRED, {}, "Test"
+            BEDROCK_CHAT_MODEL_NODE, PAYI_CRED, "", "Test"
         )
         self.assertEqual(result["parameters"]["options"]["temperature"], 0.7)
         self.assertEqual(result["parameters"]["options"]["maxTokens"], 4096)
@@ -1734,7 +1748,7 @@ class TestBuildPayiChatModelBedrockNode(unittest.TestCase):
         node = copy.deepcopy(BEDROCK_CHAT_MODEL_NODE)
         node["credentials"] = {"aws": {"id": "aws-cred-1", "name": "AWS account"}}
         result = migrate.build_payi_chat_model_bedrock_node(
-            node, PAYI_CRED, {}, "Test"
+            node, PAYI_CRED, "", "Test"
         )
         self.assertIn("aws", result["credentials"])
         self.assertEqual(result["credentials"]["aws"]["id"], "aws-cred-1")
@@ -1780,7 +1794,9 @@ class TestBuildPayiProxyAnthropicNode(unittest.TestCase):
         result = migrate.build_payi_proxy_anthropic_node(
             ANTHROPIC_APP_NODE, PAYI_CRED, "k", "Test"
         )
-        self.assertEqual(result["parameters"]["useCaseName"], "={{ $workflow.name }}")
+        self.assertEqual(result["parameters"]["useCaseName"], "={{ $workflow.name.replaceAll(' ', '-') }}")
+        self.assertEqual(result["parameters"]["useCaseId"], "={{ 'anthropic/' + $parameter.model + '/' + $execution.id }}")
+        self.assertEqual(result["parameters"]["useCaseStep"], "={{ $node.name }}")
 
 
 # ── Tests: credential redirect ───────────────────────────────────────────────
@@ -1894,6 +1910,164 @@ class TestNewNodeTypeDetection(unittest.TestCase):
         # All embeddings are currently infeasible
         for n in found:
             self.assertFalse(n["feasible"])
+
+
+# ── Tests: Databricks ────────────────────────────────────────────────────────
+
+DATABRICKS_NODE = {
+    "id": "node-dbx",
+    "name": "Databricks",
+    "type": "n8n-nodes-databricks.databricks",
+    "typeVersion": 1,
+    "position": [500, 400],
+    "parameters": {
+        "endpoint": "my-llm-endpoint",
+        "options": {
+            "temperature": 0.8,
+            "maxTokens": 4096,
+            "topP": 0.95,
+        },
+    },
+    "credentials": {
+        "databricks": {"id": "dbx-cred-1", "name": "Databricks Workspace"},
+    },
+}
+
+DATABRICKS_CHAT_MODEL_NODE = {
+    "id": "node-dbx-chat",
+    "name": "Databricks Chat Model",
+    "type": "n8n-nodes-databricks.lmChatDatabricks",
+    "typeVersion": 1,
+    "position": [550, 400],
+    "parameters": {
+        "model": "databricks-gpt-5-4",
+        "options": {
+            "temperature": 0.7,
+        },
+    },
+    "credentials": {
+        "databricks": {"id": "dbx-cred-3", "name": "Databricks Chat"},
+    },
+}
+
+DATABRICKS_AI_AGENT_NODE = {
+    "id": "node-dbx-agent",
+    "name": "Databricks AI Agent",
+    "type": "n8n-nodes-databricks.databricksAiAgent",
+    "typeVersion": 1,
+    "position": [600, 400],
+    "parameters": {
+        "model": "databricks-meta-llama-3-3-70b-instruct",
+        "options": {},
+    },
+    "credentials": {
+        "databricks": {"id": "dbx-cred-2", "name": "Databricks Agent"},
+    },
+}
+
+
+class TestDatabricksDetection(unittest.TestCase):
+    def test_databricks_nodes_are_feasible(self):
+        nodes = [
+            {"name": "Databricks", "type": "n8n-nodes-databricks.databricks", "parameters": {}},
+            {"name": "Databricks Chat Model", "type": "n8n-nodes-databricks.lmChatDatabricks", "parameters": {}},
+            {"name": "Databricks Agent", "type": "n8n-nodes-databricks.databricksAiAgent", "parameters": {}},
+        ]
+        wf = make_workflow(nodes=nodes)
+        found = migrate.find_llm_nodes([wf])
+        self.assertEqual(len(found), 3)
+        self.assertTrue(all(n["feasible"] for n in found))
+        self.assertTrue(all(n["replacement"] == "chat_model_databricks" for n in found))
+
+
+class TestBuildPayiChatModelDatabricksNode(unittest.TestCase):
+    def test_basic_fields(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_NODE, PAYI_CRED, "dapi-test-token", "Pay-i Databricks Chat Model"
+        )
+        self.assertEqual(result["type"], "n8n-nodes-payi.lmChatPayiDatabricks")
+        self.assertEqual(result["name"], "Pay-i Databricks Chat Model")
+        self.assertEqual(result["id"], "node-dbx")
+        self.assertEqual(result["position"], [500, 400])
+        self.assertEqual(result["typeVersion"], 1)
+
+    def test_endpoint_extracted(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        self.assertEqual(result["parameters"]["endpointName"], "my-llm-endpoint")
+
+    def test_endpoint_from_model_field(self):
+        """When the community node uses 'model' instead of 'endpoint'."""
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_AI_AGENT_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        self.assertEqual(result["parameters"]["endpointName"], "databricks-meta-llama-3-3-70b-instruct")
+
+    def test_options_preserved(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        opts = result["parameters"]["options"]
+        self.assertEqual(opts["temperature"], 0.8)
+        self.assertEqual(opts["maxTokens"], 4096)
+        self.assertEqual(opts["topP"], 0.95)
+
+    def test_unsupported_options_excluded(self):
+        node = copy.deepcopy(DATABRICKS_NODE)
+        node["parameters"]["options"]["unknownOption"] = "bar"
+        result = migrate.build_payi_chat_model_databricks_node(
+            node, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        self.assertNotIn("unknownOption", result["parameters"]["options"])
+
+    def test_credential_passthrough(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        self.assertIn("databricks", result["credentials"])
+        self.assertEqual(result["credentials"]["databricks"]["id"], "dbx-cred-1")
+        self.assertEqual(result["credentials"]["databricks"]["name"], "Databricks Workspace")
+
+    def test_payi_credential_reference(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        cred_ref = result["credentials"]["payiApi"]
+        self.assertEqual(cred_ref["id"], "cred-123")
+        self.assertEqual(cred_ref["name"], "Pay-i API")
+
+    def test_no_plaintext_provider_key(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_NODE, PAYI_CRED, "dapi-my-token", "Pay-i Databricks Chat Model"
+        )
+        self.assertNotIn("providerApiKey", result["parameters"])
+        self.assertNotIn("accessToken", result["parameters"])
+
+    def test_cloud_provider_defaults_to_aws(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        self.assertEqual(result["parameters"]["cloudProvider"], "aws")
+
+    def test_tracking_defaults(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        params = result["parameters"]
+        self.assertIn("useCaseName", params)
+        self.assertIn("useCaseId", params)
+        self.assertIn("useCaseStep", params)
+        self.assertIn("databricks/", params["useCaseId"])
+
+    def test_resource_locator_model(self):
+        """Handle n8n 2.x resourceLocator format for endpoint field."""
+        node = copy.deepcopy(DATABRICKS_NODE)
+        node["parameters"]["endpoint"] = {"__rl": True, "value": "my-fancy-endpoint", "mode": "string"}
+        result = migrate.build_payi_chat_model_databricks_node(
+            node, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
+        )
+        self.assertEqual(result["parameters"]["endpointName"], "my-fancy-endpoint")
 
 
 if __name__ == "__main__":

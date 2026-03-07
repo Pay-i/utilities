@@ -237,6 +237,28 @@ NATIVE_NODE_TYPES = {
         "redirectable": False,
         "recommended_action": "manual_work_required",
     },
+    # ── Databricks / AgentBricks ─────────────────────────────────────────────
+    "n8n-nodes-databricks.databricks": {
+        "provider": "databricks",
+        "category": "community_node",
+        "label": "Databricks (Community Node)",
+        "redirectable": False,
+        "recommended_action": "replace_with_payi_node",
+    },
+    "n8n-nodes-databricks.lmChatDatabricks": {
+        "provider": "databricks",
+        "category": "community_node",
+        "label": "Databricks Chat Model (Community Node)",
+        "redirectable": False,
+        "recommended_action": "replace_with_payi_node",
+    },
+    "n8n-nodes-databricks.databricksAiAgent": {
+        "provider": "databricks",
+        "category": "community_node",
+        "label": "Databricks AI Agent (Community Node)",
+        "redirectable": False,
+        "recommended_action": "replace_with_payi_node",
+    },
 }
 
 PAYI_NODE_TYPES = {

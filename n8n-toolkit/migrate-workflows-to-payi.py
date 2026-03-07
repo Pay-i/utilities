@@ -277,6 +277,26 @@ NATIVE_LLM_NODES = {
         "label": "HuggingFace Embeddings",
         "skip_reason": "HuggingFace is not a supported Pay-i provider",
     },
+    # ── Databricks / AgentBricks ─────────────────────────────────────────────
+    # Community node: n8n-nodes-databricks
+    "n8n-nodes-databricks.databricks": {
+        "provider": "databricks",
+        "replacement": "chat_model_databricks",
+        "feasible": True,
+        "label": "Databricks (Community Node)",
+    },
+    "n8n-nodes-databricks.lmChatDatabricks": {
+        "provider": "databricks",
+        "replacement": "chat_model_databricks",
+        "feasible": True,
+        "label": "Databricks Chat Model (Community Node)",
+    },
+    "n8n-nodes-databricks.databricksAiAgent": {
+        "provider": "databricks",
+        "replacement": "chat_model_databricks",
+        "feasible": True,
+        "label": "Databricks AI Agent (Community Node)",
+    },
 }
 
 # Provider → env var name for API key
@@ -285,6 +305,7 @@ PROVIDER_ENV_KEYS = {
     "anthropic": "ANTHROPIC_API_KEY",
     "azureOpenai": "AZURE_OPENAI_API_KEY",
     "bedrock": "AWS_ACCESS_KEY_ID",
+    "databricks": "DATABRICKS_TOKEN",
 }
 
 # Provider credential config — used by the interactive setup flow.
@@ -314,6 +335,13 @@ PROVIDER_CREDENTIAL_CONFIG = {
             {"key": "awsAccessKeyId", "prompt": "AWS Access Key ID", "env": "AWS_ACCESS_KEY_ID", "secret": True},
             {"key": "awsSecretAccessKey", "prompt": "AWS Secret Access Key", "env": "AWS_SECRET_ACCESS_KEY", "secret": True},
             {"key": "awsRegion", "prompt": "AWS Region", "env": "AWS_REGION", "default": "us-east-1", "secret": False},
+        ],
+    },
+    "databricks": {
+        "label": "Databricks",
+        "fields": [
+            {"key": "token", "prompt": "Databricks Personal Access Token", "env": "DATABRICKS_TOKEN", "secret": True},
+            {"key": "host", "prompt": "Databricks Workspace URL", "env": "DATABRICKS_WORKSPACE_URL", "secret": False},
         ],
     },
 }
@@ -525,6 +553,72 @@ def find_llm_nodes(workflows: list) -> list:
     return results
 
 
+# Databricks URL patterns matched in HTTP Request node parameters
+_DATABRICKS_URL_PATTERNS = [
+    ".databricks.com/serving-endpoints/",
+    ".databricks.com/api/2.0/serving-endpoints/",
+    ".databricks.com/api/v1/",
+    ".databricksapps.com/",
+]
+
+
+def find_databricks_nodes(workflows: list) -> list:
+    """Detect Databricks/AgentBricks nodes not already in NATIVE_LLM_NODES.
+
+    Two detection patterns:
+      1. Any node whose type contains 'databricks' (case-insensitive) that
+         isn't already in NATIVE_LLM_NODES (those are caught by find_llm_nodes).
+      2. HTTP Request nodes whose URL parameters target Databricks endpoints.
+
+    Returns a list of descriptors with workflow context and detection reason.
+    """
+    results = []
+    for wf in workflows:
+        wf_id = wf.get("id", "?")
+        wf_name = wf.get("name", "Untitled")
+        for node in wf.get("nodes", []):
+            node_type = node.get("type", "")
+            node_name = node.get("name", "?")
+            pos = node.get("position", [0, 0])
+
+            # Pattern 1: Community node with 'databricks' in type
+            if "databricks" in node_type.lower() and node_type not in NATIVE_LLM_NODES:
+                results.append({
+                    "workflow_id": wf_id,
+                    "workflow_name": wf_name,
+                    "node_name": node_name,
+                    "node_type": node_type,
+                    "position": pos,
+                    "reason": "Databricks community node",
+                })
+                continue
+
+            # Pattern 2: HTTP Request nodes calling Databricks URLs
+            if node_type in (
+                "n8n-nodes-base.httpRequest",
+                "@n8n/n8n-nodes-langchain.httpRequest",
+            ):
+                params = node.get("parameters", {})
+                url = params.get("url", "")
+                # Also check if URL is in an expression
+                if isinstance(url, dict):
+                    url = str(url.get("value", ""))
+                url_lower = url.lower()
+                for pattern in _DATABRICKS_URL_PATTERNS:
+                    if pattern in url_lower:
+                        results.append({
+                            "workflow_id": wf_id,
+                            "workflow_name": wf_name,
+                            "node_name": node_name,
+                            "node_type": node_type,
+                            "position": pos,
+                            "reason": f"HTTP Request to Databricks ({pattern.strip('/')})",
+                        })
+                        break
+
+    return results
+
+
 # ── Credential Management ────────────────────────────────────────────────────
 
 def ensure_payi_credential(client: N8nApiClient, payi_api_key: str, payi_base_url: str) -> dict:
@@ -583,6 +677,7 @@ NATIVE_CREDENTIAL_KEY = {
     "chat_model_anthropic": "anthropicApi",
     "chat_model_azure": "azureOpenAiApi",
     "chat_model_bedrock": "aws",
+    "chat_model_databricks": "databricks",
     "proxy": "openAiApi",
     "proxy_anthropic": "anthropicApi",
 }
@@ -632,8 +727,9 @@ def build_payi_chat_model_node(
             "model": model,
             "options": options,
             # Tracking defaults
-            "useCaseName": "={{ $workflow.name }}",
-            "useCaseId": "={{ $execution.id }}",
+            "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+            "useCaseId": "={{ 'openai/' + $parameter.model + '/' + $execution.id }}",
+            "useCaseStep": "={{ $node.name }}",
         },
         "credentials": credentials,
     }
@@ -681,8 +777,9 @@ def build_payi_chat_model_anthropic_node(
         "parameters": {
             "model": model,
             "options": options,
-            "useCaseName": "={{ $workflow.name }}",
-            "useCaseId": "={{ $execution.id }}",
+            "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+            "useCaseId": "={{ 'anthropic/' + $parameter.model + '/' + $execution.id }}",
+            "useCaseStep": "={{ $node.name }}",
         },
         "credentials": credentials,
     }
@@ -692,7 +789,7 @@ def build_payi_chat_model_anthropic_node(
 def build_payi_chat_model_azure_node(
     original: dict,
     payi_cred: dict,
-    provider_creds,
+    provider_key: str,
     new_name: str,
 ) -> dict:
     """Build a Pay-i Azure OpenAI Chat Model node from a native Azure OpenAI LangChain chat model."""
@@ -708,7 +805,7 @@ def build_payi_chat_model_azure_node(
     # Extract options
     native_options = params.get("options", {})
     options = {}
-    for key in ("temperature", "maxTokens", "topP", "frequencyPenalty", "presencePenalty"):
+    for key in ("temperature", "maxTokens", "topP", "frequencyPenalty", "presencePenalty", "timeout", "maxRetries"):
         if key in native_options:
             options[key] = native_options[key]
 
@@ -734,8 +831,9 @@ def build_payi_chat_model_azure_node(
             "deploymentName": deployment,
             "apiVersion": api_version,
             "options": options,
-            "useCaseName": "={{ $workflow.name }}",
-            "useCaseId": "={{ $execution.id }}",
+            "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+            "useCaseId": "={{ 'azure/' + $parameter.deploymentName + '/' + $execution.id }}",
+            "useCaseStep": "={{ $node.name }}",
         },
         "credentials": credentials,
     }
@@ -745,7 +843,7 @@ def build_payi_chat_model_azure_node(
 def build_payi_chat_model_bedrock_node(
     original: dict,
     payi_cred: dict,
-    provider_creds,
+    provider_key: str,
     new_name: str,
 ) -> dict:
     """Build a Pay-i Bedrock Chat Model node from a native AWS Bedrock LangChain chat model."""
@@ -785,8 +883,64 @@ def build_payi_chat_model_bedrock_node(
             "model": model,
             "region": region,
             "options": options,
-            "useCaseName": "={{ $workflow.name }}",
-            "useCaseId": "={{ $execution.id }}",
+            "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+            "useCaseId": "={{ 'bedrock/' + $parameter.model + '/' + $execution.id }}",
+            "useCaseStep": "={{ $node.name }}",
+        },
+        "credentials": credentials,
+    }
+    return new_node
+
+
+def build_payi_chat_model_databricks_node(
+    original: dict,
+    payi_cred: dict,
+    provider_key: str,
+    new_name: str,
+) -> dict:
+    """Build a Pay-i Databricks Chat Model node from a Databricks community node."""
+    params = original.get("parameters", {})
+
+    # Extract endpoint name — community node may use "endpoint", "model", or "endpointName"
+    endpoint = params.get("endpoint", params.get("endpointName", params.get("model", "")))
+    if isinstance(endpoint, dict):
+        endpoint = endpoint.get("value", "")
+
+    # Default cloud provider — we can't reliably detect this from the node params
+    # so default to "aws" (most common); user can adjust after migration.
+    cloud_provider = "aws"
+
+    native_options = params.get("options", {})
+    options = {}
+    for key in ("temperature", "maxTokens", "topP", "frequencyPenalty", "presencePenalty"):
+        if key in native_options:
+            options[key] = native_options[key]
+
+    # Pass through the existing Databricks credential
+    native_cred = _extract_native_credential(original, "databricks")
+
+    credentials = {
+        "payiApi": {
+            "id": str(payi_cred["id"]),
+            "name": payi_cred["name"],
+        },
+    }
+    if native_cred:
+        credentials["databricks"] = native_cred
+
+    new_node = {
+        "id": original.get("id", ""),
+        "name": new_name,
+        "type": "n8n-nodes-payi.lmChatPayiDatabricks",
+        "typeVersion": 1,
+        "position": original.get("position", [0, 0]),
+        "parameters": {
+            "endpointName": endpoint,
+            "cloudProvider": cloud_provider,
+            "options": options,
+            "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+            "useCaseId": "={{ 'databricks/' + $parameter.endpointName + '/' + $execution.id }}",
+            "useCaseStep": "={{ $node.name }}",
         },
         "credentials": credentials,
     }
@@ -824,8 +978,9 @@ def build_payi_proxy_anthropic_node(
             "model": model,
             "messages": messages,
             # Tracking defaults
-            "useCaseName": "={{ $workflow.name }}",
-            "useCaseId": "={{ $execution.id }}",
+            "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+            "useCaseId": "={{ 'anthropic/' + $parameter.model + '/' + $execution.id }}",
+            "useCaseStep": "={{ $node.name }}",
             "includeCostData": True,
             "returnFullResponse": False,
             "debugLogging": False,
@@ -998,8 +1153,9 @@ def build_payi_proxy_node(
             "model": model,
             "messages": messages,
             # Tracking defaults
-            "useCaseName": "={{ $workflow.name }}",
-            "useCaseId": "={{ $execution.id }}",
+            "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+            "useCaseId": "={{ 'openai/' + $parameter.model + '/' + $execution.id }}",
+            "useCaseStep": "={{ $node.name }}",
             # Output defaults
             "includeCostData": True,
             "returnFullResponse": False,
@@ -1113,6 +1269,7 @@ REPLACEMENT_LABELS = {
     "chat_model_anthropic": "Pay-i Anthropic Chat Model",
     "chat_model_azure": "Pay-i Azure OpenAI Chat Model",
     "chat_model_bedrock": "Pay-i Bedrock Chat Model",
+    "chat_model_databricks": "Pay-i Databricks Chat Model",
     "proxy": "Pay-i Proxy",
     "proxy_anthropic": "Pay-i Proxy (Anthropic)",
 }
@@ -1395,6 +1552,7 @@ def execute_node_replacement(client, selected: list, workflows: list, payi_cred:
                 "chat_model_anthropic": build_payi_chat_model_anthropic_node,
                 "chat_model_azure": build_payi_chat_model_azure_node,
                 "chat_model_bedrock": build_payi_chat_model_bedrock_node,
+                "chat_model_databricks": build_payi_chat_model_databricks_node,
                 "proxy": build_payi_proxy_node,
                 "proxy_anthropic": build_payi_proxy_anthropic_node,
             }
@@ -1564,15 +1722,35 @@ def main():
 
     found = find_llm_nodes(workflows)
     redirectable_creds = find_redirectable_credentials(client, workflows)
+    databricks_nodes = find_databricks_nodes(workflows)
 
-    if not found and not redirectable_creds:
+    if not found and not redirectable_creds and not databricks_nodes:
         print("  No AI nodes or redirectable credentials found. Nothing to migrate.")
         return 0
 
     print(f"  Scanned {len(workflows)} workflow(s), found {len(found)} AI node(s)")
     if redirectable_creds:
         print(f"  Found {len(redirectable_creds)} redirectable credential(s)")
+    if databricks_nodes:
+        print(f"  Found {yellow(str(len(databricks_nodes)))} Databricks/AgentBricks node(s)")
     print()
+
+    # ── Databricks/AgentBricks Warnings ──────────────────────────────────
+    # Known Databricks types in NATIVE_LLM_NODES are auto-migrated above.
+    # This section warns about additional Databricks nodes (unknown community
+    # node types, HTTP Request nodes calling Databricks URLs) that can't be
+    # auto-migrated but should be reviewed.
+    if databricks_nodes:
+        print(yellow(bold("  ⚠ Additional Databricks / AgentBricks Detected")))
+        print()
+        for dbx in databricks_nodes:
+            print(f"    • {bold(dbx['node_name'])} ({dim(dbx['node_type'])})")
+            print(f"      Workflow: {dbx['workflow_name']} (ID: {dbx['workflow_id']})")
+            print(f"      Reason:   {dbx['reason']}")
+        print()
+        print(f"  {yellow('Note:')} These {len(databricks_nodes)} node(s) use non-standard Databricks")
+        print(f"  types and require manual replacement with Pay-i Databricks (Proxy).")
+        print()
 
     if found:
         print_discovery_summary(found)

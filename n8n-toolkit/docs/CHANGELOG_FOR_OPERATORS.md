@@ -38,9 +38,7 @@ It focuses on operational impact, required actions, and rollout risk.
 - JSON-to-Markdown rendering (`--from-json`) for compliance artifact generation
 
 ### Changed
-- Documentation split into:
-  - `docs/` (user/customer-facing)
-  - `internal-plans/` (internal strategy, policy, contracts, local reports)
+- Documentation consolidated into `docs/` (user/customer-facing)
 
 ### Operational Impact
 - You can now produce two artifacts per audit run:

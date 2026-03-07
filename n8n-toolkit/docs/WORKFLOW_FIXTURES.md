@@ -1,6 +1,6 @@
 # Workflow Fixtures for Testing
 
-The repo includes workflow fixtures for testing audit and migration behavior without touching production n8n data.
+The repo includes workflow fixtures for testing audit and migration behavior without touching production n8n data. All fixtures are located in the `n8n-toolkit/` directory alongside the migration scripts. Run commands from that directory.
 
 ## Included Fixtures
 

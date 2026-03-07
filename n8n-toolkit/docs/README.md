@@ -9,6 +9,7 @@ This folder is for operators using the toolkit in n8n environments.
 - [Audit and Compliance Reports](./AUDIT_AND_REPORTS.md)
 - [Limitations and Known Issues](./LIMITATIONS_AND_KNOWN_ISSUES.md)
 - [Workflow Fixtures for Testing](./WORKFLOW_FIXTURES.md)
+- [Local Testing Runbook](./LOCAL_TESTING.md)
 - [Changelog For Operators](./CHANGELOG_FOR_OPERATORS.md)
 
 ## Script Overview

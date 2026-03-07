@@ -42,3 +42,19 @@ This page documents current behavior of `audit-configure-payi-proxy.py` so opera
 2. Treat `unverified` credentials as manual review items before apply.
 3. Apply changes in batches and validate workflow execution after each batch.
 4. Keep rollback options outside the script (for example export credential/workflow backups before patching).
+
+## Provider-Specific Limitations
+
+### Azure OpenAI Services
+
+Azure OpenAI credential redirect is fully supported (the `endpoint` field is rewritten to the Pay-i proxy URL). Node replacement migration is also functional, with the following caveat:
+
+- Azure OpenAI embeddings nodes (`embeddingsAzureOpenAi`) are detected but cannot be migrated automatically. If your workflows use Azure OpenAI embeddings, those nodes require manual reconfiguration after migration.
+
+### AWS Bedrock
+
+Credential redirect is not supported for AWS Bedrock. The standard n8n `aws` credential type uses an IAM Access Key / Secret Key pair, which does not have a URL field that can be swapped to a proxy endpoint.
+
+- Use node replacement (the Pay-i Bedrock Chat Model node) instead of credential redirect.
+- Node replacement passthrough requires that the original Bedrock node already has an `aws` credential attached. If the credential is missing from the source node, the migrated Pay-i node will have no AWS credentials and must be configured manually.
+- Bedrock embeddings nodes are detected but cannot be migrated automatically.

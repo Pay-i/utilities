@@ -2,5 +2,6 @@ __pycache__/
 *.pyc
 .env
 internal-plans/
+docs/LOCAL_TESTING.md
 
 .DS_Store

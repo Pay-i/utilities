@@ -65,13 +65,27 @@ This gives deterministic machine input plus review evidence for compliance.
 
 ## Optional Apply Mode
 
-The audit tool can also patch redirectable credentials:
+The audit tool can also patch redirectable credentials.
+
+Preview what would be patched (no changes applied):
+
+```bash
+python3 audit-configure-payi-proxy.py --configure-credentials --dry-run
+```
+
+Apply with interactive confirmation:
 
 ```bash
 python3 audit-configure-payi-proxy.py --configure-credentials
 ```
 
-Recommended: run report-only first, then apply with explicit review.
+Apply with confirmation skip (for CI/automation):
+
+```bash
+python3 audit-configure-payi-proxy.py --configure-credentials --yes
+```
+
+Recommended: run report-only first, then `--dry-run`, then apply with explicit review.
 
 ## Limitations and Known Issues
 

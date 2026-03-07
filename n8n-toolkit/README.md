@@ -14,7 +14,6 @@ For the Pay-i n8n node package itself, see [n8n-nodes-payi](https://github.com/p
 
 - User docs: [`docs/README.md`](./docs/README.md)
 - Limitations/known issues: [`docs/LIMITATIONS_AND_KNOWN_ISSUES.md`](./docs/LIMITATIONS_AND_KNOWN_ISSUES.md)
-- Internal planning/architecture: [`internal-plans/README.md`](./internal-plans/README.md)
 
 ## Main Scripts
 

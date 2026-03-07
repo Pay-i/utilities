@@ -3,6 +3,38 @@
 This changelog is for platform operators running migrations and audits in n8n environments.
 It focuses on operational impact, required actions, and rollout risk.
 
+## 2026-03-06
+
+### Added
+- **Databricks provider support** across migration and audit tooling:
+  - Migration script detects and replaces three native Databricks node types:
+    `n8n-nodes-databricks.databricks`, `n8n-nodes-databricks.lmChatDatabricks`,
+    `n8n-nodes-databricks.databricksAiAgent`
+  - Builds Pay-i Databricks replacement nodes (`lmChatPayiDatabricks`) with
+    correct credential mapping using the native `databricks` credential type
+  - Audit script now flags Databricks community nodes with `replace_with_payi_node` recommendation
+- Databricks credential provisioning support in `PROVIDER_CREDENTIAL_CONFIG`
+  (fields: `token`, `host`; env vars: `DATABRICKS_TOKEN`, `DATABRICKS_WORKSPACE_URL`)
+- Test coverage for Databricks detection, node building, credential passthrough,
+  and option filtering (157 tests total, all passing)
+
+### Changed
+- Documentation updates across getting started guide, command reference,
+  audit reports, and workflow fixtures
+
+### Operational Impact
+- Operators can now migrate Databricks community node workflows to Pay-i
+  with the same `--dry-run` / apply workflow used for other providers
+- Audit reports will now surface Databricks nodes that should be replaced
+
+### Required Operator Action
+- If migrating Databricks workflows, ensure the following are available:
+  - A Databricks Personal Access Token (`DATABRICKS_TOKEN`)
+  - The Databricks workspace URL (`DATABRICKS_WORKSPACE_URL`)
+- The `n8n-nodes-payi` package must be at **v0.3.0+** for Databricks node support
+
+---
+
 ## 2026-03-04
 
 ### Changed
@@ -38,9 +70,7 @@ It focuses on operational impact, required actions, and rollout risk.
 - JSON-to-Markdown rendering (`--from-json`) for compliance artifact generation
 
 ### Changed
-- Documentation split into:
-  - `docs/` (user/customer-facing)
-  - `internal-plans/` (internal strategy, policy, contracts, local reports)
+- Documentation consolidated into `docs/` (user/customer-facing)
 
 ### Operational Impact
 - You can now produce two artifacts per audit run:

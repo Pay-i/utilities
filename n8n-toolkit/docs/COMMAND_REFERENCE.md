@@ -1,5 +1,7 @@
 # Command Reference
 
+> **[Back to Documentation Index](./README.md)**
+
 ## `audit-configure-payi-proxy.py`
 
 Audit workflows and emit migration/compliance reports.
@@ -87,3 +89,11 @@ OpenAI-only credential redirect script.
 ### Required Environment Variables
 
 `N8N_BASE_URL`, `N8N_API_KEY`, `PAYI_BASE_URL` are required. `PAYI_API_KEY` is optional (a reminder is printed if unset, but the script continues).
+
+---
+
+## See Also
+
+- **[Getting Started](./GETTING_STARTED.md)** — Prerequisites and recommended operator flow
+- **[Audit and Compliance Reports](./AUDIT_AND_REPORTS.md)** — Report generation workflows and artifact pairing
+- **[Limitations and Known Issues](./LIMITATIONS_AND_KNOWN_ISSUES.md)** — Constraints that affect how commands behave

@@ -1,5 +1,7 @@
 # Getting Started
 
+> **[Back to Documentation Index](./README.md)**
+
 ## 1) Prerequisites
 
 - **n8n API access**
@@ -107,3 +109,11 @@ OpenAI only:
 - Expected requests route through Pay-i proxy
 - Cost/usage/tracking data appears as expected
 - No broken expression references
+
+---
+
+## Next Steps
+
+- **[Command Reference](./COMMAND_REFERENCE.md)** — Full details on every flag and option
+- **[Audit and Compliance Reports](./AUDIT_AND_REPORTS.md)** — Generating and interpreting audit artifacts
+- **[Limitations and Known Issues](./LIMITATIONS_AND_KNOWN_ISSUES.md)** — Read before any production rollout

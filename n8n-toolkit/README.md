@@ -12,8 +12,16 @@ For the Pay-i n8n node package itself, see [n8n-nodes-payi](https://github.com/p
 
 ## Documentation
 
-- User docs: [`docs/README.md`](./docs/README.md)
-- Limitations/known issues: [`docs/LIMITATIONS_AND_KNOWN_ISSUES.md`](./docs/LIMITATIONS_AND_KNOWN_ISSUES.md)
+Full documentation lives in [`docs/`](./docs/README.md). Start there.
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](./docs/GETTING_STARTED.md) | Prerequisites, setup, and recommended operator flow |
+| [Command Reference](./docs/COMMAND_REFERENCE.md) | All scripts, flags, and CI/pipeline usage |
+| [Audit and Compliance Reports](./docs/AUDIT_AND_REPORTS.md) | JSON/Markdown report generation and artifact pairing |
+| [Workflow Fixtures](./docs/WORKFLOW_FIXTURES.md) | Test fixtures included in this repo |
+| [Limitations and Known Issues](./docs/LIMITATIONS_AND_KNOWN_ISSUES.md) | Current constraints and provider-specific caveats |
+| [Changelog for Operators](./docs/CHANGELOG_FOR_OPERATORS.md) | Operational changelog with required actions per release |
 
 ## Main Scripts
 

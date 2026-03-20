@@ -1,7 +1,37 @@
+# Python
 __pycache__/
 *.pyc
-.env
-internal-plans/
-docs/LOCAL_TESTING.md
+*.pyo
+*.egg-info/
 
+# Environment and secrets
+.env
+.env.local
+!.env.example
+!.env.op
+
+# OS and IDE
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project internals
+internal-plans/
+todos/
+
+# Test and coverage artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Internal-only docs (not for public repo)
+docs/LOCAL_TESTING.md
+docs/DEMO_VIDEO_SCRIPT.md
+
+# Generated audit/report artifacts (operator creates their own)
+audit-demoflows.json
+demo-audit.json
+demo-audit.md

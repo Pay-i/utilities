@@ -1,5 +1,7 @@
 # Limitations and Known Issues
 
+> **[Back to Documentation Index](./README.md)**
+
 This page documents current behavior of `audit-configure-payi-proxy.py` so operators can plan migrations with predictable outcomes.
 
 ## Scope of Detection
@@ -58,3 +60,12 @@ Credential redirect is not supported for AWS Bedrock. The standard n8n `aws` cre
 - Use node replacement (the Pay-i Bedrock Chat Model node) instead of credential redirect.
 - Node replacement passthrough requires that the original Bedrock node already has an `aws` credential attached. If the credential is missing from the source node, the migrated Pay-i node will have no AWS credentials and must be configured manually.
 - Bedrock embeddings nodes are detected but cannot be migrated automatically.
+
+---
+
+## See Also
+
+- **[Getting Started](./GETTING_STARTED.md)** — Recommended operator flow and backup procedures
+- **[Audit and Compliance Reports](./AUDIT_AND_REPORTS.md)** — How credential capability states appear in reports
+- **[Command Reference](./COMMAND_REFERENCE.md)** — Full flag reference for all scripts
+- **[Changelog for Operators](./CHANGELOG_FOR_OPERATORS.md)** — Updates that may resolve or add to known issues

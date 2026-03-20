@@ -1,5 +1,7 @@
 # Audit and Compliance Reports
 
+> **[Back to Documentation Index](./README.md)**
+
 `audit-configure-payi-proxy.py` supports both machine-readable and human-readable reporting.
 
 ## Report Types
@@ -96,3 +98,10 @@ Most important operational points:
 - `unverified` capability means this n8n API did not provide enough credential detail to safely auto-classify redirect support.
 - Auto-apply mode only patches credentials marked `likely_supported`.
 - Migration paths in the manifest are recommendations and should be validated in staged rollout batches.
+
+---
+
+## See Also
+
+- **[Command Reference](./COMMAND_REFERENCE.md)** — Full flag and option details for the audit script
+- **[Getting Started](./GETTING_STARTED.md)** — Recommended operator flow including audit-first workflow

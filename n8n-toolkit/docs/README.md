@@ -1,39 +1,41 @@
-# User Documentation
+# Pay-i n8n Toolkit — Documentation
 
-This folder is for operators using the toolkit in n8n environments.
+This documentation covers the Pay-i n8n migration and audit toolkit. It is written for platform operators, integration engineers, and compliance teams working with self-hosted n8n environments.
 
-## Start Here
+For the Pay-i n8n community node package itself, see [n8n-nodes-payi on GitHub](https://github.com/Pay-i/n8n-nodes-payi).
 
-- [Getting Started](./GETTING_STARTED.md)
-- [Command Reference](./COMMAND_REFERENCE.md)
-- [Audit and Compliance Reports](./AUDIT_AND_REPORTS.md)
-- [Limitations and Known Issues](./LIMITATIONS_AND_KNOWN_ISSUES.md)
-- [Workflow Fixtures for Testing](./WORKFLOW_FIXTURES.md)
-- [Local Testing Runbook](./LOCAL_TESTING.md)
-- [Changelog For Operators](./CHANGELOG_FOR_OPERATORS.md)
+---
+
+## Where to Start
+
+If you are new to the toolkit, read the guides in this order:
+
+1. **[Getting Started](./GETTING_STARTED.md)** — Prerequisites, environment setup, and the recommended operator flow from audit through migration.
+2. **[Command Reference](./COMMAND_REFERENCE.md)** — Every script, flag, and option. Includes CI/pipeline usage patterns.
+3. **[Audit and Compliance Reports](./AUDIT_AND_REPORTS.md)** — How to generate JSON and Markdown audit artifacts, interpret credential capability states, and use apply mode.
+
+## Testing and Validation
+
+4. **[Workflow Fixtures](./WORKFLOW_FIXTURES.md)** — Description of the test workflow files included in this repo and how to use them.
+
+## Reference
+
+5. **[Limitations and Known Issues](./LIMITATIONS_AND_KNOWN_ISSUES.md)** — Current detection scope, credential capability constraints, API limitations, and provider-specific caveats. Read this before any production rollout.
+6. **[Changelog for Operators](./CHANGELOG_FOR_OPERATORS.md)** — Release-by-release operational impact, required actions, and known limitations.
+
+---
 
 ## Script Overview
 
-- `audit-configure-payi-proxy.py`
-  - Workflow and credential inventory
-  - Credential capability probing
-  - Migration manifest output
-  - JSON + Markdown report generation
-  - Optional credential patching for redirectable credentials
-
-- `migrate-workflows-to-payi.py`
-  - Interactive migration runner
-  - Strategy selection: credential redirect, node replacement, or both
-  - Workflow backups and renamed migrated workflows
-
-- `migrate-to-payi.sh`
-  - Bulk credential redirect for OpenAI, Anthropic, Azure OpenAI
-
-- `migrate-openai-to-payi.sh`
-  - OpenAI-only credential redirect
+| Script | Purpose |
+|--------|---------|
+| `audit-configure-payi-proxy.py` | Workflow inventory, credential capability probing, JSON/Markdown report generation, optional credential patching |
+| `migrate-workflows-to-payi.py` | Interactive migration with strategy selection: credential redirect, node replacement, or both |
+| `migrate-to-payi.sh` | Bulk credential redirect for OpenAI, Anthropic, and Azure OpenAI |
+| `migrate-openai-to-payi.sh` | OpenAI-only credential redirect |
 
 ## Intended Audience
 
-- Platform admins running self-hosted n8n
-- Integration engineers migrating workflows to Pay-i
-- Security/compliance teams reviewing migration artifacts
+- **Platform admins** running self-hosted n8n instances
+- **Integration engineers** migrating workflows to route through Pay-i
+- **Security and compliance teams** reviewing migration artifacts and audit reports

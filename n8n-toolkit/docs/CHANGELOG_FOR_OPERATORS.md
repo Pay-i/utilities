@@ -1,4 +1,6 @@
-# Changelog For Operators
+# Changelog for Operators
+
+> **[Back to Documentation Index](./README.md)**
 
 This changelog is for platform operators running migrations and audits in n8n environments.
 It focuses on operational impact, required actions, and rollout risk.
@@ -87,3 +89,10 @@ It focuses on operational impact, required actions, and rollout risk.
 ### Known Limitations
 - Some n8n instances do not expose credential detail fields over API, resulting in `unverified` capability status.
 - `unverified` credentials should be validated before automated redirect writes.
+
+---
+
+## See Also
+
+- **[Getting Started](./GETTING_STARTED.md)** — Setup and recommended operator flow
+- **[Limitations and Known Issues](./LIMITATIONS_AND_KNOWN_ISSUES.md)** — Full list of current constraints

@@ -1993,8 +1993,9 @@ def main():
     # Collect credential IDs used by Databricks-shim nodes — these point at a
     # Databricks workspace, not OpenAI, so they must NOT be redirected through
     # Pay-i's OpenAI proxy path. Filter them out of the redirect set.
+    # Normalize IDs to str — n8n versions vary between int and str.
     shim_cred_ids = {
-        c["id"]
+        str(c["id"])
         for n in found
         if n.get("databricks_shim", {}).get("detected")
         for c in (n["node"].get("credentials") or {}).values()

@@ -29,6 +29,7 @@ This toolkit uses only the Python standard library. There are no third-party run
 
 | Package | Version | License | Purpose |
 |---------|---------|---------|---------|
+| `pytest` | >=7.0 | MIT | Test framework and runner used in CI |
 | `unittest.mock` | stdlib | PSF | Mocking for unit tests |
 
 ## Runtime Services

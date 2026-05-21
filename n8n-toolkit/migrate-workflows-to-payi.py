@@ -678,7 +678,7 @@ def find_databricks_nodes(workflows: list) -> list:
             # Pattern 2: HTTP Request nodes calling Databricks URLs
             if node_type in (
                 "n8n-nodes-base.httpRequest",
-                "@n8n/n8n-nodes-langchain.httpRequest",
+                "@n8n/n8n-nodes-langchain.toolHttpRequest",
             ):
                 params = node.get("parameters", {})
                 url = params.get("url", "")
@@ -1164,8 +1164,9 @@ def build_payi_chat_model_databricks_node(
             "deployedModel": "",
             "cloudProvider": cloud_provider,
             "options": options,
-            "useCaseName": "={{ $workflow.name }}",
-            "useCaseId": "={{ $execution.id }}",
+            "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+            "useCaseId": "={{ 'databricks/' + $parameter.endpointName.value + '/' + $execution.id }}",
+            "useCaseStep": "={{ $node.name }}",
         },
         "credentials": credentials,
     }

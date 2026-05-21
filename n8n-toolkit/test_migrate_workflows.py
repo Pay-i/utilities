@@ -2274,8 +2274,15 @@ class TestBuildPayiChatModelDatabricksShimNode(unittest.TestCase):
         result = migrate.build_payi_chat_model_databricks_node(
             DBX_SOURCE_NODE_STRING_MODEL, PAYI_CRED, DBX_CRED, "aws", "X"
         )
-        self.assertEqual(result["parameters"]["useCaseName"], "={{ $workflow.name }}")
-        self.assertEqual(result["parameters"]["useCaseId"], "={{ $execution.id }}")
+        self.assertEqual(
+            result["parameters"]["useCaseName"],
+            "={{ $workflow.name.replaceAll(' ', '-') }}",
+        )
+        self.assertEqual(
+            result["parameters"]["useCaseId"],
+            "={{ 'databricks/' + $parameter.endpointName.value + '/' + $execution.id }}",
+        )
+        self.assertEqual(result["parameters"]["useCaseStep"], "={{ $node.name }}")
 
 
 # ── Tests: Audit script Databricks awareness ─────────────────────────────────

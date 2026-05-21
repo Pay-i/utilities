@@ -28,6 +28,13 @@ COPY audit-configure-payi-proxy.py \
 # Make the shell scripts executable; Python files are run via the python entrypoint.
 RUN chmod +x migrate-to-payi.sh migrate-openai-to-payi.sh
 
+# Run as a non-root user so the container doesn't have root privileges
+# at runtime. The user owns /app so volume mounts under /reports remain
+# writable when the host directory permits.
+RUN useradd --create-home --uid 1000 --shell /bin/bash toolkit && \
+    chown -R toolkit:toolkit /app
+USER toolkit
+
 # Default to the audit script with --help so `docker run payi-n8n-toolkit`
 # does something useful instead of hanging on stdin.
 ENTRYPOINT ["python"]

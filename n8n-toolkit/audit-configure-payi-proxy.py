@@ -726,6 +726,19 @@ def choose_migration_action(node: dict, report: dict) -> dict:
             "reason": "Node already uses Pay-i.",
         }
 
+    # Shim path takes priority: an lmChatOpenAi pointed at a Databricks
+    # workspace must NOT be redirected via the OpenAI proxy.
+    if node.get("databricks_shim", {}).get("detected"):
+        cloud = node["databricks_shim"].get("cloud_provider", "aws")
+        return {
+            "path": "replace_with_payi_databricks",
+            "confidence": 0.97,
+            "reason": (
+                f"OpenAI node points at a Databricks workspace "
+                f"(cloud_provider={cloud}); replace with Pay-i Databricks node."
+            ),
+        }
+
     provider = node.get("provider")
     if provider in {"google", "mistral"}:
         return {

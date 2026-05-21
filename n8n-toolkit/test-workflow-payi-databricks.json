@@ -38,8 +38,9 @@
           "temperature": 0.5,
           "maxTokens": 1024
         },
-        "useCaseName": "={{ $workflow.name }}",
-        "useCaseId": "={{ $execution.id }}"
+        "useCaseName": "={{ $workflow.name.replaceAll(' ', '-') }}",
+        "useCaseId": "={{ 'databricks/' + $parameter.endpointName.value + '/' + $execution.id }}",
+        "useCaseStep": "={{ $node.name }}"
       },
       "credentials": {
         "payiApi": {

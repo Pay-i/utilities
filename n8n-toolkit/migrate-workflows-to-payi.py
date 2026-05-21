@@ -1911,7 +1911,7 @@ def main():
     parser.add_argument("--strategy", choices=["redirect", "replace", "both"],
                         help="Migration strategy (skip interactive prompt)")
     parser.add_argument("--databricks-cloud",
-                        choices=["aws", "google", "databricks"],
+                        choices=["aws", "azure", "google", "databricks"],
                         default="aws",
                         help="Default cloud for ambiguous *.cloud.databricks.com hostnames in non-interactive mode")
     parser.add_argument("--databricks-credential-id", metavar="ID",

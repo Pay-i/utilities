@@ -10,7 +10,7 @@
 - **Pay-i access** (needed for credential patch/apply)
   - `PAYI_BASE_URL` (e.g. `https://api.pay-i.com`)
   - `PAYI_API_KEY`
-- **Python 3.8+**
+- **Python 3.10+** (CI tests 3.10 and 3.12; Docker image uses 3.12-slim)
 - **Bash + curl** (for shell redirect scripts)
 - **n8n-nodes-payi community node** (required for node replacement migration)
   - Install via n8n UI: **Settings > Community Nodes > Install** > enter `n8n-nodes-payi`

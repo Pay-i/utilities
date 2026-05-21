@@ -6,7 +6,7 @@ This toolkit uses only the Python standard library. There are no third-party run
 
 | Package | Version | License | Purpose |
 |---------|---------|---------|---------|
-| *(none)* | — | — | All imports are Python 3.8+ stdlib |
+| *(none)* | — | — | All imports are Python 3.10+ stdlib |
 
 ## Standard Library Modules Used
 

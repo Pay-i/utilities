@@ -5,7 +5,7 @@ migrate-workflows-to-payi.py
 Scans n8n workflows for native LLM nodes (OpenAI, Anthropic, etc.)
 and replaces them with Pay-i Proxy or Pay-i Chat Model nodes.
 
-Requires: Python 3.8+, no pip dependencies (stdlib only).
+Requires: Python 3.10+, no pip dependencies (stdlib only).
 
 Environment variables:
   N8N_BASE_URL   - Your n8n instance (e.g. http://localhost:5678)

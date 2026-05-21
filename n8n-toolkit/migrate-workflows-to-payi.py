@@ -745,6 +745,10 @@ def resolve_payi_databricks_credential(client: N8nApiClient, args, dry_run: bool
     explicit_id = getattr(args, "databricks_credential_id", None)
     if explicit_id:
         cred = client.get(f"/api/v1/credentials/{explicit_id}")
+        # n8n may return the credential wrapped as {"data": {...}} on some
+        # versions — unwrap before the type check.
+        if isinstance(cred, dict) and "type" not in cred and isinstance(cred.get("data"), dict):
+            cred = cred["data"]
         if cred.get("type") != "payiDatabricksApi":
             print(f"  {red('ERROR')}: --databricks-credential-id {explicit_id} "
                   f"has type {cred.get('type')!r}, expected 'payiDatabricksApi'")
@@ -792,17 +796,19 @@ def resolve_payi_databricks_credential(client: N8nApiClient, args, dry_run: bool
     workspace_url = os.environ.get("PAYI_DBX_WORKSPACE_URL", "").strip()
     auto = getattr(args, "auto_yes", False) or not _is_interactive()
 
-    if not pat and auto:
+    if (not pat or not workspace_url) and auto:
         print(f"  {yellow('No payiDatabricksApi credential found')}; "
-              f"set PAYI_DBX_PAT and PAYI_DBX_WORKSPACE_URL to auto-create, "
-              f"or run interactively. Databricks nodes will be migrated "
-              f"without their credential — wire it up manually after.")
+              f"set both PAYI_DBX_PAT and PAYI_DBX_WORKSPACE_URL to "
+              f"auto-create, or run interactively. Databricks nodes will be "
+              f"migrated without their credential — wire it up manually after.")
         return None
 
-    if not pat:
+    if not pat or not workspace_url:
         print(f"  {bold('No Databricks credential found — creating one')}")
-        pat = prompt_value("Databricks Personal Access Token", "PAYI_DBX_PAT", secret=True)
-        workspace_url = prompt_value("Databricks Workspace URL", "PAYI_DBX_WORKSPACE_URL")
+        if not pat:
+            pat = prompt_value("Databricks Personal Access Token", "PAYI_DBX_PAT", secret=True)
+        if not workspace_url:
+            workspace_url = prompt_value("Databricks Workspace URL", "PAYI_DBX_WORKSPACE_URL")
         if not pat or not workspace_url:
             print(f"  {yellow('Skipping credential creation — missing PAT or workspace URL')}")
             return None
@@ -1067,8 +1073,14 @@ def build_payi_chat_model_databricks_community_node(
     payi_cred: dict,
     provider_key: str,
     new_name: str,
+    cloud_provider: str = "aws",
 ) -> dict:
-    """Build a Pay-i Databricks Chat Model node from a Databricks community node."""
+    """Build a Pay-i Databricks Chat Model node from a Databricks community node.
+
+    cloud_provider defaults to ``aws``. Pass an explicit value (typically the
+    ``--databricks-cloud`` CLI flag) when the workspace runs on Azure, GCP, or
+    a self-hosted Databricks deployment.
+    """
     params = original.get("parameters", {})
 
     # Extract endpoint name — community node may use "endpoint", "model", or "endpointName"
@@ -1076,9 +1088,9 @@ def build_payi_chat_model_databricks_community_node(
     if isinstance(endpoint, dict):
         endpoint = endpoint.get("value", "")
 
-    # Default cloud provider — we can't reliably detect this from the node params
-    # so default to "aws" (most common); user can adjust after migration.
-    cloud_provider = "aws"
+    # cloud_provider was supplied by the caller (defaults to "aws"). Community
+    # Databricks nodes don't carry a workspace hostname, so the dispatcher
+    # passes through the --databricks-cloud CLI flag (or "aws" by default).
 
     native_options = params.get("options", {})
     options = {}
@@ -1793,13 +1805,16 @@ def execute_node_replacement(client, selected: list, workflows: list, payi_cred:
                 continue
 
             if replacement_type == "chat_model_databricks":
+                # --databricks-cloud override (set by main() when the user
+                # passes a non-default value) applies to both the shim and
+                # community-node paths.
+                cloud_override = getattr(client, "_databricks_cloud_override", None)
                 if node_info.get("databricks_shim"):
                     # Shim path: lmChatOpenAi reclassified as Databricks.
                     shim = node_info.get("databricks_shim", {})
                     cloud = shim.get("cloud_provider") or "aws"
-                    # Honour --databricks-cloud override for the ambiguous aws default
-                    if cloud == "aws" and getattr(client, "_databricks_cloud_override", None):
-                        cloud = client._databricks_cloud_override
+                    if cloud == "aws" and cloud_override:
+                        cloud = cloud_override
                     new_node = build_payi_chat_model_databricks_node(
                         node, payi_cred, dbx_cred, cloud, new_name,
                     )
@@ -1807,6 +1822,7 @@ def execute_node_replacement(client, selected: list, workflows: list, payi_cred:
                     # Community-node path: n8n-nodes-databricks.* in NATIVE_LLM_NODES.
                     new_node = build_payi_chat_model_databricks_community_node(
                         node, payi_cred, cred_val, new_name,
+                        cloud_provider=cloud_override or "aws",
                     )
             else:
                 new_node = builder(node, payi_cred, cred_val, new_name)
@@ -1974,7 +1990,20 @@ def main():
         print()
 
     found = find_llm_nodes(workflows, client=client)
-    redirectable_creds = find_redirectable_credentials(client, workflows)
+    # Collect credential IDs used by Databricks-shim nodes — these point at a
+    # Databricks workspace, not OpenAI, so they must NOT be redirected through
+    # Pay-i's OpenAI proxy path. Filter them out of the redirect set.
+    shim_cred_ids = {
+        c["id"]
+        for n in found
+        if n.get("databricks_shim", {}).get("detected")
+        for c in (n["node"].get("credentials") or {}).values()
+        if isinstance(c, dict) and c.get("id")
+    }
+    redirectable_creds = [
+        c for c in find_redirectable_credentials(client, workflows)
+        if str(c["id"]) not in shim_cred_ids
+    ]
     databricks_nodes = find_databricks_nodes(workflows)
 
     if not found and not redirectable_creds and not databricks_nodes:

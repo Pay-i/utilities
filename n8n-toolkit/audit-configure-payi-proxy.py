@@ -836,8 +836,18 @@ def build_patch_data(provider: str, provider_api_key: str, payi_base_url: str, p
 
 
 def pick_credentials_for_redirect(report: dict) -> List[dict]:
+    # Credentials used by Databricks-shim nodes point at a Databricks workspace,
+    # not OpenAI. They must not be redirected through Pay-i's OpenAI proxy.
+    shim_cred_ids = {
+        ref["credential_id"]
+        for node in report.get("nodes", [])
+        if node.get("databricks_shim", {}).get("detected")
+        for ref in node.get("credential_refs", [])
+    }
     selected = []
     for cred_id, usage in report["credentials_usage"].items():
+        if cred_id in shim_cred_ids:
+            continue
         cred_type = usage.get("credential_type")
         provider = SUPPORTED_CREDENTIAL_REDIRECT_TYPES.get(cred_type)
         if not provider:

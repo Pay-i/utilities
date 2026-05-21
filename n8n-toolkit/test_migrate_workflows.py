@@ -6,6 +6,7 @@ Run:  python3 -m pytest test_migrate_workflows.py -v
   or: python3 test_migrate_workflows.py
 """
 
+import argparse
 import copy
 import importlib.util
 import json
@@ -20,6 +21,13 @@ SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "migrate-workflows-to-payi
 spec = importlib.util.spec_from_file_location("migrate", SCRIPT_PATH)
 migrate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(migrate)
+
+# ── Import the audit script as a module ──────────────────────────────────────
+
+AUDIT_SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "audit-configure-payi-proxy.py")
+audit_spec = importlib.util.spec_from_file_location("audit_payi", AUDIT_SCRIPT_PATH)
+audit_payi = importlib.util.module_from_spec(audit_spec)
+audit_spec.loader.exec_module(audit_payi)
 
 # ── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -204,6 +212,33 @@ class TestFindLlmNodes(unittest.TestCase):
         self.assertTrue(all(n["feasible"] for n in found))
         self.assertEqual(found[0]["replacement"], "chat_model_azure")
         self.assertEqual(found[1]["replacement"], "chat_model_bedrock")
+
+    def test_databricks_shim_classified_separately(self):
+        node = {
+            "name": "DBX Shim",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "parameters": {
+                "model": "databricks-llama-3-70b",
+                "options": {"baseURL": "https://x.cloud.databricks.com/v1"},
+            },
+        }
+        plain = {
+            "name": "Plain OpenAI",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "parameters": {"model": "gpt-4o"},
+        }
+        wf = make_workflow(nodes=[node, plain])
+        found = migrate.find_llm_nodes([wf])
+        self.assertEqual(len(found), 2)
+
+        shim = next(n for n in found if n["node"]["name"] == "DBX Shim")
+        self.assertEqual(shim["replacement"], "chat_model_databricks")
+        self.assertTrue(shim["feasible"])
+        self.assertEqual(shim["databricks_shim"]["cloud_provider"], "aws")
+
+        plain_found = next(n for n in found if n["node"]["name"] == "Plain OpenAI")
+        self.assertEqual(plain_found["replacement"], "chat_model")
+        self.assertNotIn("databricks_shim", plain_found)  # only set when shim
 
 
 # ── Tests: build_payi_chat_model_node ────────────────────────────────────────
@@ -1980,9 +2015,9 @@ class TestDatabricksDetection(unittest.TestCase):
         self.assertTrue(all(n["replacement"] == "chat_model_databricks" for n in found))
 
 
-class TestBuildPayiChatModelDatabricksNode(unittest.TestCase):
+class TestBuildPayiChatModelDatabricksCommunityNode(unittest.TestCase):
     def test_basic_fields(self):
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_NODE, PAYI_CRED, "dapi-test-token", "Pay-i Databricks Chat Model"
         )
         self.assertEqual(result["type"], "n8n-nodes-payi.lmChatPayiDatabricks")
@@ -1992,20 +2027,20 @@ class TestBuildPayiChatModelDatabricksNode(unittest.TestCase):
         self.assertEqual(result["typeVersion"], 1)
 
     def test_endpoint_extracted(self):
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         self.assertEqual(result["parameters"]["endpointName"], "my-llm-endpoint")
 
     def test_endpoint_from_model_field(self):
         """When the community node uses 'model' instead of 'endpoint'."""
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_AI_AGENT_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         self.assertEqual(result["parameters"]["endpointName"], "databricks-meta-llama-3-3-70b-instruct")
 
     def test_options_preserved(self):
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         opts = result["parameters"]["options"]
@@ -2016,13 +2051,13 @@ class TestBuildPayiChatModelDatabricksNode(unittest.TestCase):
     def test_unsupported_options_excluded(self):
         node = copy.deepcopy(DATABRICKS_NODE)
         node["parameters"]["options"]["unknownOption"] = "bar"
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             node, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         self.assertNotIn("unknownOption", result["parameters"]["options"])
 
     def test_credential_passthrough(self):
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         self.assertIn("databricks", result["credentials"])
@@ -2030,7 +2065,7 @@ class TestBuildPayiChatModelDatabricksNode(unittest.TestCase):
         self.assertEqual(result["credentials"]["databricks"]["name"], "Databricks Workspace")
 
     def test_payi_credential_reference(self):
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         cred_ref = result["credentials"]["payiApi"]
@@ -2038,20 +2073,20 @@ class TestBuildPayiChatModelDatabricksNode(unittest.TestCase):
         self.assertEqual(cred_ref["name"], "Pay-i API")
 
     def test_no_plaintext_provider_key(self):
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_NODE, PAYI_CRED, "dapi-my-token", "Pay-i Databricks Chat Model"
         )
         self.assertNotIn("providerApiKey", result["parameters"])
         self.assertNotIn("accessToken", result["parameters"])
 
     def test_cloud_provider_defaults_to_aws(self):
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         self.assertEqual(result["parameters"]["cloudProvider"], "aws")
 
     def test_tracking_defaults(self):
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             DATABRICKS_NODE, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         params = result["parameters"]
@@ -2064,10 +2099,588 @@ class TestBuildPayiChatModelDatabricksNode(unittest.TestCase):
         """Handle n8n 2.x resourceLocator format for endpoint field."""
         node = copy.deepcopy(DATABRICKS_NODE)
         node["parameters"]["endpoint"] = {"__rl": True, "value": "my-fancy-endpoint", "mode": "string"}
-        result = migrate.build_payi_chat_model_databricks_node(
+        result = migrate.build_payi_chat_model_databricks_community_node(
             node, PAYI_CRED, "dapi-test", "Pay-i Databricks Chat Model"
         )
         self.assertEqual(result["parameters"]["endpointName"], "my-fancy-endpoint")
+
+
+# ── Tests: classify_databricks_shim ──────────────────────────────────────────
+
+class TestClassifyDatabricksShim(unittest.TestCase):
+    """Detection of lmChatOpenAi nodes pointed at Databricks workspaces."""
+
+    def _node(self, base_url=None):
+        params = {"model": "databricks-claude-sonnet-4-6"}
+        if base_url is not None:
+            params["options"] = {"baseURL": base_url}
+        return {
+            "name": "OpenAI Chat Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "parameters": params,
+            "credentials": {"openAiApi": {"id": "cred-1", "name": "OpenAI"}},
+        }
+
+    def test_azure_databricks_hostname(self):
+        node = self._node("https://abc.azuredatabricks.net/serving-endpoints/x/invocations")
+        result = migrate.classify_databricks_shim(node, client=None)
+        self.assertTrue(result["detected"])
+        self.assertEqual(result["cloud_provider"], "azure")
+        self.assertEqual(result["source"], "node_param")
+
+    def test_aws_databricks_hostname(self):
+        node = self._node("https://e2-demo.cloud.databricks.com/serving-endpoints/y/invocations")
+        result = migrate.classify_databricks_shim(node, client=None)
+        self.assertTrue(result["detected"])
+        self.assertEqual(result["cloud_provider"], "aws")
+        self.assertEqual(result["source"], "node_param")
+
+    def test_plain_openai_url_is_not_a_shim(self):
+        node = self._node("https://api.openai.com/v1")
+        result = migrate.classify_databricks_shim(node, client=None)
+        self.assertFalse(result["detected"])
+        self.assertIsNone(result["cloud_provider"])
+
+    def test_no_baseurl_and_no_client_is_not_a_shim(self):
+        node = self._node(base_url=None)
+        result = migrate.classify_databricks_shim(node, client=None)
+        self.assertFalse(result["detected"])
+        self.assertEqual(result["source"], "none")
+
+    def test_baseurl_on_credential_when_node_has_none(self):
+        node = self._node(base_url=None)
+        client = MagicMock()
+        with patch.object(migrate, "_fetch_credential_data",
+                          return_value={"url": "https://corp.azuredatabricks.net/v1"}):
+            result = migrate.classify_databricks_shim(node, client=client)
+        self.assertTrue(result["detected"])
+        self.assertEqual(result["cloud_provider"], "azure")
+        self.assertEqual(result["source"], "credential")
+
+    def test_malformed_baseurl_does_not_crash(self):
+        node = self._node("not a url")
+        result = migrate.classify_databricks_shim(node, client=None)
+        self.assertFalse(result["detected"])
+
+    def test_case_insensitive_hostname(self):
+        node = self._node("https://ABC.AZUREDATABRICKS.NET/v1")
+        result = migrate.classify_databricks_shim(node, client=None)
+        self.assertTrue(result["detected"])
+        self.assertEqual(result["cloud_provider"], "azure")
+
+    def test_databricks_in_path_but_not_hostname_is_not_shim(self):
+        node = self._node("https://api.openai.com/v1/databricks-shim")
+        result = migrate.classify_databricks_shim(node, client=None)
+        self.assertFalse(result["detected"])
+
+
+# ── Tests: build_payi_chat_model_databricks_node (shim builder) ──────────────
+
+DBX_SOURCE_NODE_STRING_MODEL = {
+    "id": "src-1",
+    "name": "OpenAI Chat Model",
+    "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+    "typeVersion": 1,
+    "position": [400, 300],
+    "parameters": {
+        "model": "databricks-claude-sonnet-4-6",
+        "options": {
+            "baseURL": "https://e2-demo.cloud.databricks.com/serving-endpoints/x/invocations",
+            "temperature": 0.5,
+            "maxTokens": 2048,
+            "topP": 0.9,
+        },
+    },
+    "credentials": {"openAiApi": {"id": "old-cred", "name": "OpenAI"}},
+}
+
+DBX_SOURCE_NODE_RL_MODEL = {
+    "id": "src-2",
+    "name": "OpenAI Chat Model RL",
+    "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+    "typeVersion": 1,
+    "position": [400, 300],
+    "parameters": {
+        "model": {"__rl": True, "mode": "list", "value": "gpt-4o"},
+        "options": {"baseURL": "https://abc.azuredatabricks.net/v1"},
+    },
+}
+
+DBX_CRED = {"id": "dbx-cred-1", "name": "Databricks PAT"}
+
+
+class TestBuildPayiChatModelDatabricksShimNode(unittest.TestCase):
+    def test_builds_correct_type_and_position(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DBX_SOURCE_NODE_STRING_MODEL, PAYI_CRED, DBX_CRED, "aws", "Pay-i Databricks Chat Model"
+        )
+        self.assertEqual(result["type"], "n8n-nodes-payi.lmChatPayiDatabricks")
+        self.assertEqual(result["position"], [400, 300])
+        self.assertEqual(result["name"], "Pay-i Databricks Chat Model")
+        self.assertEqual(result["typeVersion"], 1)
+
+    def test_endpoint_name_from_string_model(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DBX_SOURCE_NODE_STRING_MODEL, PAYI_CRED, DBX_CRED, "aws", "X"
+        )
+        self.assertEqual(
+            result["parameters"]["endpointName"],
+            {"mode": "name", "value": "databricks-claude-sonnet-4-6"},
+        )
+
+    def test_endpoint_name_from_resourcelocator_model(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DBX_SOURCE_NODE_RL_MODEL, PAYI_CRED, DBX_CRED, "azure", "X"
+        )
+        self.assertEqual(
+            result["parameters"]["endpointName"],
+            {"mode": "name", "value": "gpt-4o"},
+        )
+        self.assertEqual(result["parameters"]["cloudProvider"], "azure")
+
+    def test_deployed_model_left_empty(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DBX_SOURCE_NODE_STRING_MODEL, PAYI_CRED, DBX_CRED, "aws", "X"
+        )
+        self.assertEqual(result["parameters"]["deployedModel"], "")
+
+    def test_options_subset_passed_through(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DBX_SOURCE_NODE_STRING_MODEL, PAYI_CRED, DBX_CRED, "aws", "X"
+        )
+        opts = result["parameters"]["options"]
+        self.assertEqual(opts["temperature"], 0.5)
+        self.assertEqual(opts["maxTokens"], 2048)
+        self.assertEqual(opts["topP"], 0.9)
+        self.assertNotIn("baseURL", opts)  # baseURL is dropped — Pay-i node doesn't use it
+
+    def test_credentials_with_dbx_cred(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DBX_SOURCE_NODE_STRING_MODEL, PAYI_CRED, DBX_CRED, "aws", "X"
+        )
+        creds = result["credentials"]
+        self.assertEqual(creds["payiApi"]["id"], "cred-123")
+        self.assertEqual(creds["payiDatabricksApi"], {"id": "dbx-cred-1", "name": "Databricks PAT"})
+
+    def test_credentials_without_dbx_cred(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DBX_SOURCE_NODE_STRING_MODEL, PAYI_CRED, None, "aws", "X"
+        )
+        creds = result["credentials"]
+        self.assertIn("payiApi", creds)
+        self.assertNotIn("payiDatabricksApi", creds)
+
+    def test_tracking_defaults(self):
+        result = migrate.build_payi_chat_model_databricks_node(
+            DBX_SOURCE_NODE_STRING_MODEL, PAYI_CRED, DBX_CRED, "aws", "X"
+        )
+        self.assertEqual(
+            result["parameters"]["useCaseName"],
+            "={{ $workflow.name.replaceAll(' ', '-') }}",
+        )
+        self.assertEqual(
+            result["parameters"]["useCaseId"],
+            "={{ 'databricks/' + $parameter.endpointName.value + '/' + $execution.id }}",
+        )
+        self.assertEqual(result["parameters"]["useCaseStep"], "={{ $node.name }}")
+
+
+# ── Tests: Audit script Databricks awareness ─────────────────────────────────
+
+DATABRICKS_WF_PATH = os.path.join(
+    os.path.dirname(__file__), "test-workflow-payi-databricks.json"
+)
+
+
+class TestAuditDatabricksRecognition(unittest.TestCase):
+    """The audit script must recognize the new lmChatPayiDatabricks node and the
+    payiDatabricksApi credential type so workflows already on the new Databricks
+    proxy show up in audit reports instead of being silently dropped."""
+
+    def test_databricks_node_in_payi_node_types(self):
+        self.assertIn(
+            "n8n-nodes-payi.lmChatPayiDatabricks", audit_payi.PAYI_NODE_TYPES
+        )
+        info = audit_payi.PAYI_NODE_TYPES["n8n-nodes-payi.lmChatPayiDatabricks"]
+        self.assertEqual(info["category"], "payi_chat_model")
+        self.assertEqual(info["label"], "Pay-i Databricks (Proxy)")
+
+    def test_payi_node_labels_match_upstream(self):
+        # Sanity-check: display labels match what n8n-nodes-payi v1.x ships.
+        expected = {
+            "n8n-nodes-payi.lmChatPayi": "Pay-i OpenAI (Proxy)",
+            "n8n-nodes-payi.lmChatPayiAnthropic": "Pay-i Anthropic (Proxy)",
+            "n8n-nodes-payi.lmChatPayiAzure": "Pay-i Azure AI Foundry (Proxy)",
+            "n8n-nodes-payi.lmChatPayiBedrock": "Pay-i Amazon Bedrock (Proxy)",
+            "n8n-nodes-payi.lmChatPayiDatabricks": "Pay-i Databricks (Proxy)",
+        }
+        for node_type, label in expected.items():
+            self.assertEqual(audit_payi.PAYI_NODE_TYPES[node_type]["label"], label)
+
+    def test_payi_databricks_credential_type_known(self):
+        self.assertIn("payiDatabricksApi", audit_payi.KNOWN_PAYI_CREDENTIAL_TYPES)
+        # Pay-i credentials are not redirect-eligible (they already point at Pay-i).
+        self.assertNotIn(
+            "payiDatabricksApi", audit_payi.SUPPORTED_CREDENTIAL_REDIRECT_TYPES
+        )
+
+    def test_audit_picks_up_databricks_workflow_fixture(self):
+        with open(DATABRICKS_WF_PATH) as f:
+            wf = json.load(f)
+        report = audit_payi.build_analysis_report([wf])
+        node_types = {n["node_type"] for n in report["nodes"]}
+        self.assertIn("n8n-nodes-payi.lmChatPayiDatabricks", node_types)
+        # The Databricks node should be classified as already-on-Pay-i.
+        dbx = next(
+            n for n in report["nodes"]
+            if n["node_type"] == "n8n-nodes-payi.lmChatPayiDatabricks"
+        )
+        self.assertEqual(dbx["source"], "payi")
+        self.assertEqual(dbx["recommended_action"], "already_on_payi")
+        # Both Pay-i credentials should be tracked as used by the workflow.
+        cred_keys = {c["credential_key"] for c in dbx["credential_refs"]}
+        self.assertEqual(cred_keys, {"payiApi", "payiDatabricksApi"})
+
+    def test_choose_migration_action_for_databricks_node(self):
+        with open(DATABRICKS_WF_PATH) as f:
+            wf = json.load(f)
+        report = audit_payi.build_analysis_report([wf])
+        dbx = next(
+            n for n in report["nodes"]
+            if n["node_type"] == "n8n-nodes-payi.lmChatPayiDatabricks"
+        )
+        decision = audit_payi.choose_migration_action(dbx, report)
+        self.assertEqual(decision["path"], "already_on_payi")
+        self.assertEqual(decision["confidence"], 1.0)
+
+
+# ── Tests: resolve_payi_databricks_credential ────────────────────────────────
+
+class TestResolvePayiDatabricksCredential(unittest.TestCase):
+    def _client_with_creds(self, creds):
+        client = MagicMock()
+        client.get = MagicMock(side_effect=lambda path, **kw: (
+            {"data": creds} if path == "/api/v1/credentials"
+            else next((c for c in creds if c.get("id") == path.rsplit("/", 1)[-1]), {})
+        ))
+        client.post = MagicMock(return_value={"id": "new-dbx", "name": "Databricks PAT"})
+        return client
+
+    def _args(self, **kw):
+        ns = argparse.Namespace(
+            databricks_credential_id=None,
+            databricks_cloud="aws",
+            auto_yes=False,
+        )
+        for k, v in kw.items():
+            setattr(ns, k, v)
+        return ns
+
+    def test_dry_run_returns_stub(self):
+        client = self._client_with_creds([])
+        result = migrate.resolve_payi_databricks_credential(
+            client, self._args(), dry_run=True
+        )
+        self.assertEqual(result["id"], "dry-run-dbx")
+
+    def test_one_existing_credential_reused(self):
+        creds = [{"id": "abc", "name": "DBX 1", "type": "payiDatabricksApi"}]
+        client = self._client_with_creds(creds)
+        result = migrate.resolve_payi_databricks_credential(
+            client, self._args(), dry_run=False
+        )
+        self.assertEqual(result["id"], "abc")
+        self.assertEqual(result["name"], "DBX 1")
+
+    def test_two_existing_creds_auto_yes_picks_first(self):
+        creds = [
+            {"id": "a", "name": "DBX A", "type": "payiDatabricksApi"},
+            {"id": "b", "name": "DBX B", "type": "payiDatabricksApi"},
+        ]
+        client = self._client_with_creds(creds)
+        result = migrate.resolve_payi_databricks_credential(
+            client, self._args(auto_yes=True), dry_run=False
+        )
+        self.assertEqual(result["id"], "a")
+
+    def test_explicit_id_resolved(self):
+        creds = [{"id": "xyz", "name": "DBX Pinned", "type": "payiDatabricksApi"}]
+        client = self._client_with_creds(creds)
+        result = migrate.resolve_payi_databricks_credential(
+            client, self._args(databricks_credential_id="xyz"), dry_run=False
+        )
+        self.assertEqual(result["id"], "xyz")
+
+    def test_explicit_id_wrong_type_exits(self):
+        creds = [{"id": "wrong", "name": "OAI", "type": "openAiApi"}]
+        client = self._client_with_creds(creds)
+        with self.assertRaises(SystemExit):
+            migrate.resolve_payi_databricks_credential(
+                client, self._args(databricks_credential_id="wrong"), dry_run=False
+            )
+
+    def test_two_creds_interactive_valid_pick(self):
+        creds = [
+            {"id": "a", "name": "DBX A", "type": "payiDatabricksApi"},
+            {"id": "b", "name": "DBX B", "type": "payiDatabricksApi"},
+        ]
+        client = self._client_with_creds(creds)
+        with patch("builtins.input", return_value="2"), \
+             patch.object(migrate, "_is_interactive", return_value=True):
+            result = migrate.resolve_payi_databricks_credential(
+                client, self._args(), dry_run=False
+            )
+        self.assertEqual(result["id"], "b")
+
+    def test_two_creds_interactive_zero_falls_back_to_first(self):
+        """Regression: '0' previously returned the LAST credential (negative index)."""
+        creds = [
+            {"id": "a", "name": "DBX A", "type": "payiDatabricksApi"},
+            {"id": "b", "name": "DBX B", "type": "payiDatabricksApi"},
+        ]
+        client = self._client_with_creds(creds)
+        with patch("builtins.input", return_value="0"), \
+             patch.object(migrate, "_is_interactive", return_value=True):
+            result = migrate.resolve_payi_databricks_credential(
+                client, self._args(), dry_run=False
+            )
+        self.assertEqual(result["id"], "a")  # first, not last
+
+    def test_two_creds_interactive_out_of_range_falls_back_to_first(self):
+        creds = [
+            {"id": "a", "name": "DBX A", "type": "payiDatabricksApi"},
+            {"id": "b", "name": "DBX B", "type": "payiDatabricksApi"},
+        ]
+        client = self._client_with_creds(creds)
+        with patch("builtins.input", return_value="99"), \
+             patch.object(migrate, "_is_interactive", return_value=True):
+            result = migrate.resolve_payi_databricks_credential(
+                client, self._args(), dry_run=False
+            )
+        self.assertEqual(result["id"], "a")
+
+    def test_two_creds_interactive_invalid_string_falls_back_to_first(self):
+        creds = [
+            {"id": "a", "name": "DBX A", "type": "payiDatabricksApi"},
+            {"id": "b", "name": "DBX B", "type": "payiDatabricksApi"},
+        ]
+        client = self._client_with_creds(creds)
+        with patch("builtins.input", return_value="not a number"), \
+             patch.object(migrate, "_is_interactive", return_value=True):
+            result = migrate.resolve_payi_databricks_credential(
+                client, self._args(), dry_run=False
+            )
+        self.assertEqual(result["id"], "a")
+
+    def test_no_creds_with_env_vars_creates(self):
+        client = self._client_with_creds([])
+        env = {"PAYI_DBX_PAT": "dapi-test", "PAYI_DBX_WORKSPACE_URL": "https://x.cloud.databricks.com"}
+        with patch.dict(os.environ, env, clear=False):
+            result = migrate.resolve_payi_databricks_credential(
+                client, self._args(auto_yes=True), dry_run=False
+            )
+        self.assertEqual(result["id"], "new-dbx")
+        # POST was called with the PAT
+        self.assertTrue(client.post.called)
+        post_body = client.post.call_args[0][1]
+        self.assertEqual(post_body["type"], "payiDatabricksApi")
+        self.assertEqual(post_body["data"]["accessToken"], "dapi-test")
+        self.assertEqual(post_body["data"]["workspaceUrl"], "https://x.cloud.databricks.com")
+
+    def test_no_creds_no_env_no_interactive_returns_none(self):
+        client = self._client_with_creds([])
+        # Make sure the env vars are NOT set
+        env_to_clear = {"PAYI_DBX_PAT": "", "PAYI_DBX_WORKSPACE_URL": ""}
+        with patch.dict(os.environ, env_to_clear, clear=False):
+            for var in ("PAYI_DBX_PAT", "PAYI_DBX_WORKSPACE_URL"):
+                if var in os.environ and os.environ[var] == "":
+                    del os.environ[var]
+            result = migrate.resolve_payi_databricks_credential(
+                client, self._args(auto_yes=True), dry_run=False
+            )
+        self.assertIsNone(result)
+
+
+# ── Tests: Databricks shim end-to-end ────────────────────────────────────────
+
+DBX_SHIM_WF_PATH = os.path.join(
+    os.path.dirname(__file__), "test-workflow-databricks-shim.json"
+)
+
+
+class TestDatabricksShimEndToEnd(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with open(DBX_SHIM_WF_PATH) as f:
+            cls.workflow = json.load(f)
+
+    def test_scan_classifies_shim_and_plain_separately(self):
+        found = migrate.find_llm_nodes([self.workflow])
+        self.assertEqual(len(found), 2)
+        shim = next(n for n in found if n["node"]["name"] == "Databricks Shim")
+        plain = next(n for n in found if n["node"]["name"] == "Plain OpenAI")
+        self.assertEqual(shim["replacement"], "chat_model_databricks")
+        self.assertEqual(plain["replacement"], "chat_model")
+
+    def test_full_migration_produces_correct_node_types(self):
+        workflow = copy.deepcopy(self.workflow)
+        put_calls = []
+
+        def mock_request(method, path, body=None, quiet=False):
+            if method == "GET" and path == "/api/v1/workflows":
+                return {"data": [workflow]}
+            if method == "GET" and path == "/api/v1/workflows/wf-dbx-shim":
+                return copy.deepcopy(workflow)
+            if method == "GET" and path == "/api/v1/credentials":
+                return {"data": [
+                    {"id": "c-payi", "name": "Pay-i API", "type": "payiApi"},
+                    {"id": "c-dbx", "name": "Databricks PAT", "type": "payiDatabricksApi"},
+                ]}
+            if method == "PUT":
+                put_calls.append({"path": path, "body": body})
+                return {"nodes": (body or {}).get("nodes", [])}
+            if method == "POST":
+                return {"id": "new", "name": "?"}
+            return {}
+
+        env = {
+            "N8N_BASE_URL": "http://localhost:5678",
+            "N8N_API_KEY": "test-key",
+            "PAYI_BASE_URL": "https://api.pay-i.com",
+            "PAYI_API_KEY": "pk-test",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("sys.argv", ["migrate", "--auto-yes", "--strategy", "replace"]):
+                with patch.object(migrate.N8nApiClient, "_request", side_effect=mock_request):
+                    rc = migrate.main()
+
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(put_calls), 1)
+        node_types = {n["type"] for n in put_calls[0]["body"]["nodes"]}
+        self.assertIn("n8n-nodes-payi.lmChatPayiDatabricks", node_types)
+        self.assertIn("n8n-nodes-payi.lmChatPayi", node_types)
+        # Both native lmChatOpenAi nodes are gone
+        self.assertNotIn("@n8n/n8n-nodes-langchain.lmChatOpenAi", node_types)
+
+        # The Databricks node has the right cloudProvider
+        dbx_node = next(n for n in put_calls[0]["body"]["nodes"]
+                        if n["type"] == "n8n-nodes-payi.lmChatPayiDatabricks")
+        self.assertEqual(dbx_node["parameters"]["cloudProvider"], "aws")
+        self.assertEqual(
+            dbx_node["parameters"]["endpointName"]["value"],
+            "databricks-claude-sonnet-4-6",
+        )
+        # payiDatabricksApi credential was wired up
+        self.assertEqual(dbx_node["credentials"]["payiDatabricksApi"]["id"], "c-dbx")
+
+    def test_dry_run_resolver_returns_stub_directly(self):
+        """The dry-run path produces the sentinel stub credential
+        without contacting n8n's credentials API."""
+        client = MagicMock()
+        client.get = MagicMock(side_effect=AssertionError(
+            "dry-run should not call /api/v1/credentials"
+        ))
+        args = argparse.Namespace(
+            databricks_credential_id=None,
+            databricks_cloud="aws",
+            auto_yes=True,
+        )
+        result = migrate.resolve_payi_databricks_credential(
+            client, args, dry_run=True
+        )
+        self.assertEqual(result["id"], "dry-run-dbx")
+        self.assertIn("dry run", result["name"].lower())
+
+    def test_dry_run_full_flow_smoke(self):
+        """Dry-run end-to-end on a workflow with a Databricks shim
+        produces no PUT calls and exits 0."""
+        workflow = copy.deepcopy(self.workflow)
+        put_calls = []
+
+        def mock_request(method, path, body=None, quiet=False):
+            if method == "GET" and path == "/api/v1/workflows":
+                return {"data": [workflow]}
+            if method == "GET" and path == "/api/v1/workflows/wf-dbx-shim":
+                return copy.deepcopy(workflow)
+            if method == "GET" and path == "/api/v1/credentials":
+                return {"data": []}
+            if method == "PUT":
+                put_calls.append({"path": path, "body": body})
+                return {"nodes": (body or {}).get("nodes", [])}
+            return {}
+
+        env = {
+            "N8N_BASE_URL": "http://localhost:5678",
+            "N8N_API_KEY": "test-key",
+            "PAYI_BASE_URL": "https://api.pay-i.com",
+            "PAYI_API_KEY": "pk-test",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("sys.argv", ["migrate", "--dry-run", "--auto-yes"]):
+                with patch.object(migrate.N8nApiClient, "_request", side_effect=mock_request):
+                    rc = migrate.main()
+
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(put_calls), 0)  # dry-run never PUTs
+
+
+# ── Tests: audit-side classify_databricks_shim ───────────────────────────────
+
+class TestAuditClassifyDatabricksShim(unittest.TestCase):
+    def test_audit_classifies_shim(self):
+        node = {
+            "name": "DBX",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "parameters": {
+                "model": "databricks-llama",
+                "options": {"baseURL": "https://e2.cloud.databricks.com/v1"},
+            },
+        }
+        result = audit_payi.classify_databricks_shim(node, client=None)
+        self.assertTrue(result["detected"])
+        self.assertEqual(result["cloud_provider"], "aws")
+
+    def test_audit_report_has_databricks_shim_field(self):
+        wf = {
+            "id": "w1",
+            "name": "Test",
+            "nodes": [{
+                "name": "DBX",
+                "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                "parameters": {
+                    "model": "databricks-claude",
+                    "options": {"baseURL": "https://x.azuredatabricks.net/v1"},
+                },
+            }],
+            "connections": {},
+        }
+        report = audit_payi.build_analysis_report([wf])
+        node = report["nodes"][0]
+        self.assertIn("databricks_shim", node)
+        self.assertTrue(node["databricks_shim"]["detected"])
+        self.assertEqual(node["databricks_shim"]["cloud_provider"], "azure")
+        self.assertEqual(node["recommended_action"], "replace_with_payi_databricks")
+
+    def test_audit_does_not_classify_plain_openai_as_shim(self):
+        """A plain lmChatOpenAi node gets databricks_shim with detected=False
+        and keeps its original recommended_action."""
+        wf = {
+            "id": "w1",
+            "name": "Test",
+            "nodes": [{
+                "name": "Plain",
+                "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                "parameters": {"model": "gpt-4o"},
+            }],
+            "connections": {},
+        }
+        report = audit_payi.build_analysis_report([wf])
+        node = report["nodes"][0]
+        self.assertIn("databricks_shim", node)
+        self.assertFalse(node["databricks_shim"]["detected"])
+        self.assertEqual(node["databricks_shim"]["source"], "none")
+        # Original recommended_action is preserved (not overridden)
+        self.assertNotEqual(node["recommended_action"], "replace_with_payi_databricks")
 
 
 if __name__ == "__main__":

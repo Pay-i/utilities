@@ -123,7 +123,7 @@ echo ""
 echo "This will update the base URL on all ${CRED_COUNT} OpenAI credential(s) to:"
 echo "  ${PROXY_URL}"
 echo ""
-read -p "Proceed? (y/N) " CONFIRM
+read -r -p "Proceed? (y/N) " CONFIRM
 if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]]; then
   echo "Aborted."
   exit 0
@@ -141,15 +141,6 @@ for c in creds:
 " | while IFS='|' read -r CRED_ID CRED_NAME; do
 
   echo "Updating credential [${CRED_ID}] ${CRED_NAME}..."
-
-  # Fetch full credential data
-  FULL_CRED=$(curl -s \
-    -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-    "${N8N_BASE_URL}/api/v1/credentials/${CRED_ID}" \
-    --include-unencrypted-data 2>/dev/null || \
-  curl -s \
-    -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
-    "${N8N_BASE_URL}/api/v1/credentials/${CRED_ID}")
 
   # Update via PATCH with new URL
   UPDATE_RESPONSE=$(curl -s -w "\n%{http_code}" \

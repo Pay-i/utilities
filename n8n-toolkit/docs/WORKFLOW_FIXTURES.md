@@ -1,5 +1,7 @@
 # Workflow Fixtures for Testing
 
+> **[Back to Documentation Index](./README.md)**
+
 The repo includes workflow fixtures for testing audit and migration behavior without touching production n8n data. All fixtures are located in the `n8n-toolkit/` directory alongside the migration scripts. Run commands from that directory.
 
 ## Included Fixtures
@@ -26,3 +28,10 @@ The repo includes workflow fixtures for testing audit and migration behavior wit
 
 - Fixtures use placeholder IDs and credentials.
 - Replace values only when doing environment-specific test runs.
+
+---
+
+## See Also
+
+- **[Audit and Compliance Reports](./AUDIT_AND_REPORTS.md)** — Use fixtures to validate report rendering
+- **[Getting Started](./GETTING_STARTED.md)** — Recommended operator flow

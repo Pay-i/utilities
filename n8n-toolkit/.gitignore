@@ -1,7 +1,62 @@
+# ── Python ────────────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
-.env
-internal-plans/
-docs/LOCAL_TESTING.md
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
 
+# ── Build / dist ──────────────────────────────────────────────────────────
+build/
+dist/
+*.egg
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+*.log
+
+# ── Secrets & env ─────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.op
+*.pem
+*.key
+*.crt
+*.p12
+
+# ── Editor / OS ───────────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Claude / AI tooling ───────────────────────────────────────────────────
+.claude/
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+.aider*
+.cursorrules
+
+# ── Working artifacts (not shipped) ───────────────────────────────────────
+todos/
+internal-plans/
+docs/superpowers/
+docs/samples/
+
+# ── Internal-only docs (not for public repo) ──────────────────────────────
+docs/LOCAL_TESTING.md
+docs/DEMO_VIDEO_SCRIPT.md
+
+# ── Local audit reports ───────────────────────────────────────────────────
+audit*.json
+audit*.md
+demo-audit.json
+demo-audit.md

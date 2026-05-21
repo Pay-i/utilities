@@ -22,6 +22,7 @@ import re
 import ssl
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Dict, List, Optional
 
@@ -270,23 +271,37 @@ PAYI_NODE_TYPES = {
     "n8n-nodes-payi.lmChatPayi": {
         "provider": "payi_chat_model",
         "category": "payi_chat_model",
-        "label": "Pay-i Chat Model (OpenAI)",
+        "label": "Pay-i OpenAI (Proxy)",
     },
     "n8n-nodes-payi.lmChatPayiAnthropic": {
         "provider": "payi_chat_model_anthropic",
         "category": "payi_chat_model",
-        "label": "Pay-i Chat Model (Anthropic)",
+        "label": "Pay-i Anthropic (Proxy)",
     },
     "n8n-nodes-payi.lmChatPayiAzure": {
         "provider": "payi_chat_model_azure",
         "category": "payi_chat_model",
-        "label": "Pay-i Chat Model (Azure OpenAI)",
+        "label": "Pay-i Azure AI Foundry (Proxy)",
     },
     "n8n-nodes-payi.lmChatPayiBedrock": {
         "provider": "payi_chat_model_bedrock",
         "category": "payi_chat_model",
-        "label": "Pay-i Chat Model (Bedrock)",
+        "label": "Pay-i Amazon Bedrock (Proxy)",
     },
+    "n8n-nodes-payi.lmChatPayiDatabricks": {
+        "provider": "payi_chat_model_databricks",
+        "category": "payi_chat_model",
+        "label": "Pay-i Databricks (Proxy)",
+    },
+}
+
+# n8n credential types known to the toolkit. Values used only for display /
+# classification — `payiApi` and `payiDatabricksApi` are not redirect-eligible
+# (they already point at Pay-i), but listing them keeps audit reports from
+# tagging them as unknown.
+KNOWN_PAYI_CREDENTIAL_TYPES = {
+    "payiApi": "payi",
+    "payiDatabricksApi": "payi_databricks",
 }
 
 SUPPORTED_CREDENTIAL_REDIRECT_TYPES = {
@@ -301,6 +316,51 @@ PROVIDER_ENV_KEYS = {
     "azureOpenai": "AZURE_OPENAI_API_KEY",
     "bedrock": "AWS_ACCESS_KEY_ID",
 }
+
+
+# ── Databricks Shim Detection (duplicate of migrator helper, see spec §11) ─
+# NOTE: This intentionally duplicates `classify_databricks_shim` from
+# migrate-workflows-to-payi.py. The plan (§11) chose duplication over a shared
+# module to keep both scripts self-contained and runnable standalone. Keep the
+# two copies in sync when changing detection logic.
+
+DATABRICKS_HOSTNAME_SUFFIXES = {
+    ".azuredatabricks.net": "azure",
+    ".cloud.databricks.com": "aws",
+}
+
+
+def _classify_databricks_hostname(url: Optional[str]) -> Optional[str]:
+    if not url or not isinstance(url, str):
+        return None
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except (ValueError, AttributeError):
+        return None
+    host = (parts.hostname or "").lower()
+    if not host:
+        return None
+    for suffix, cloud in DATABRICKS_HOSTNAME_SUFFIXES.items():
+        if host.endswith(suffix):
+            return cloud
+    return None
+
+
+def classify_databricks_shim(node: dict, client) -> dict:
+    """Return {detected, cloud_provider, source} for an lmChatOpenAi node.
+
+    `client` is unused in the audit version — kept for signature parity
+    with the migrator's helper. The audit version is intentionally
+    pure: no credential probes, no I/O.
+    """
+    params = node.get("parameters", {}) or {}
+    options = params.get("options", {}) or {}
+    base_url = options.get("baseURL") if isinstance(options, dict) else None
+    cloud = _classify_databricks_hostname(base_url) if base_url else None
+    if cloud:
+        return {"detected": True, "cloud_provider": cloud, "source": "node_param"}
+    # No credential probe in audit by default — keeps build_analysis_report pure
+    return {"detected": False, "cloud_provider": None, "source": "none"}
 
 
 class N8nApiClient:
@@ -537,6 +597,20 @@ def build_analysis_report(workflows: list) -> dict:
                 "credentials": node.get("credentials", {}),
                 "credential_refs": extract_credential_refs(node),
             }
+
+            # Databricks shim classification for lmChatOpenAi nodes only
+            if node_type == "@n8n/n8n-nodes-langchain.lmChatOpenAi":
+                shim = classify_databricks_shim(node, client=None)
+                node_entry["databricks_shim"] = shim
+                if shim["detected"]:
+                    # Override the OpenAI recommendation entirely. A shim's
+                    # credential URL points at a Databricks workspace, so the
+                    # default credential_redirect path would route through
+                    # Pay-i's OpenAI proxy and produce wrong cost attribution.
+                    # The Databricks-specific replacement is the only correct
+                    # action for these nodes.
+                    node_entry["recommended_action"] = "replace_with_payi_databricks"
+
             nodes_report.append(node_entry)
 
             for cred_ref in node_entry["credential_refs"]:
@@ -631,6 +705,7 @@ def enrich_credentials_usage(client: N8nApiClient, report: dict) -> None:
         usage["credential_type"] = cred_type
         usage["n8n_credential_name"] = cred.get("name", usage.get("credential_name"))
         usage["redirect_supported"] = cred_type in SUPPORTED_CREDENTIAL_REDIRECT_TYPES
+        usage["already_payi_credential"] = cred_type in KNOWN_PAYI_CREDENTIAL_TYPES
         if usage["redirect_supported"]:
             capability = probe_credential_capabilities(client, cred_id)
             usage["capability_probe"] = capability
@@ -649,6 +724,19 @@ def choose_migration_action(node: dict, report: dict) -> dict:
             "path": "already_on_payi",
             "confidence": 1.0,
             "reason": "Node already uses Pay-i.",
+        }
+
+    # Shim path takes priority: an lmChatOpenAi pointed at a Databricks
+    # workspace must NOT be redirected via the OpenAI proxy.
+    if node.get("databricks_shim", {}).get("detected"):
+        cloud = node["databricks_shim"].get("cloud_provider", "aws")
+        return {
+            "path": "replace_with_payi_databricks",
+            "confidence": 0.97,
+            "reason": (
+                f"OpenAI node points at a Databricks workspace "
+                f"(cloud_provider={cloud}); replace with Pay-i Databricks node."
+            ),
         }
 
     provider = node.get("provider")
@@ -761,8 +849,18 @@ def build_patch_data(provider: str, provider_api_key: str, payi_base_url: str, p
 
 
 def pick_credentials_for_redirect(report: dict) -> List[dict]:
+    # Credentials used by Databricks-shim nodes point at a Databricks workspace,
+    # not OpenAI. They must not be redirected through Pay-i's OpenAI proxy.
+    shim_cred_ids = {
+        ref["credential_id"]
+        for node in report.get("nodes", [])
+        if node.get("databricks_shim", {}).get("detected")
+        for ref in node.get("credential_refs", [])
+    }
     selected = []
     for cred_id, usage in report["credentials_usage"].items():
+        if cred_id in shim_cred_ids:
+            continue
         cred_type = usage.get("credential_type")
         provider = SUPPORTED_CREDENTIAL_REDIRECT_TYPES.get(cred_type)
         if not provider:

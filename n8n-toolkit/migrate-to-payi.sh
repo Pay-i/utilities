@@ -114,7 +114,7 @@ for c in creds:
 "
 
 echo ""
-read -p "Proceed with migration? (y/N) " CONFIRM
+read -r -p "Proceed with migration? (y/N) " CONFIRM
 if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]]; then
   echo "Aborted."
   exit 0
@@ -142,7 +142,7 @@ for c in creds:
       echo "─── [${CRED_ID}] ${CRED_NAME} (${LABEL}) ───"
       echo "  New base URL: ${PROXY_URL}"
       echo ""
-      read -p "  Enter the OpenAI API key for '${CRED_NAME}' (or 's' to skip): " PROVIDER_KEY
+      read -r -p "  Enter the OpenAI API key for '${CRED_NAME}' (or 's' to skip): " PROVIDER_KEY
       if [[ "${PROVIDER_KEY}" == "s" || -z "${PROVIDER_KEY}" ]]; then
         echo "  Skipped."
         echo ""
@@ -170,7 +170,7 @@ print(json.dumps({'data': {
       echo "  New base URL: ${PROXY_URL}"
       echo "  Will set xProxy-api-key header automatically."
       echo ""
-      read -p "  Enter the Anthropic API key for '${CRED_NAME}' (or 's' to skip): " PROVIDER_KEY
+      read -r -p "  Enter the Anthropic API key for '${CRED_NAME}' (or 's' to skip): " PROVIDER_KEY
       if [[ "${PROVIDER_KEY}" == "s" || -z "${PROVIDER_KEY}" ]]; then
         echo "  Skipped."
         echo ""
@@ -196,7 +196,7 @@ print(json.dumps({'data': {
       echo "─── [${CRED_ID}] ${CRED_NAME} (${LABEL}) ───"
       echo "  New endpoint: ${PROXY_URL}"
       echo ""
-      read -p "  Enter the Azure OpenAI API key for '${CRED_NAME}' (or 's' to skip): " PROVIDER_KEY
+      read -r -p "  Enter the Azure OpenAI API key for '${CRED_NAME}' (or 's' to skip): " PROVIDER_KEY
       if [[ "${PROVIDER_KEY}" == "s" || -z "${PROVIDER_KEY}" ]]; then
         echo "  Skipped."
         echo ""

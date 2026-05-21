@@ -1,5 +1,7 @@
 # Getting Started
 
+> **[Back to Documentation Index](./README.md)**
+
 ## 1) Prerequisites
 
 - **n8n API access**
@@ -8,7 +10,7 @@
 - **Pay-i access** (needed for credential patch/apply)
   - `PAYI_BASE_URL` (e.g. `https://api.pay-i.com`)
   - `PAYI_API_KEY`
-- **Python 3.8+**
+- **Python 3.10+** (CI tests 3.10 and 3.12; Docker image uses 3.12-slim)
 - **Bash + curl** (for shell redirect scripts)
 - **n8n-nodes-payi community node** (required for node replacement migration)
   - Install via n8n UI: **Settings > Community Nodes > Install** > enter `n8n-nodes-payi`
@@ -107,3 +109,11 @@ OpenAI only:
 - Expected requests route through Pay-i proxy
 - Cost/usage/tracking data appears as expected
 - No broken expression references
+
+---
+
+## Next Steps
+
+- **[Command Reference](./COMMAND_REFERENCE.md)** — Full details on every flag and option
+- **[Audit and Compliance Reports](./AUDIT_AND_REPORTS.md)** — Generating and interpreting audit artifacts
+- **[Limitations and Known Issues](./LIMITATIONS_AND_KNOWN_ISSUES.md)** — Read before any production rollout

@@ -1,37 +1,62 @@
-# Python
+# ── Python ────────────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 *.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
 
-# Environment and secrets
+# ── Build / dist ──────────────────────────────────────────────────────────
+build/
+dist/
+*.egg
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+*.log
+
+# ── Secrets & env ─────────────────────────────────────────────────────────
 .env
-.env.local
+.env.*
 !.env.example
 !.env.op
+*.pem
+*.key
+*.crt
+*.p12
 
-# OS and IDE
+# ── Editor / OS ───────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# Project internals
-internal-plans/
+# ── Claude / AI tooling ───────────────────────────────────────────────────
+.claude/
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+.aider*
+.cursorrules
+
+# ── Working artifacts (not shipped) ───────────────────────────────────────
 todos/
+internal-plans/
+docs/superpowers/
+docs/samples/
 
-# Test and coverage artifacts
-.coverage
-htmlcov/
-.pytest_cache/
-
-# Internal-only docs (not for public repo)
+# ── Internal-only docs (not for public repo) ──────────────────────────────
 docs/LOCAL_TESTING.md
 docs/DEMO_VIDEO_SCRIPT.md
 
-# Generated audit/report artifacts (operator creates their own)
-audit-demoflows.json
+# ── Local audit reports ───────────────────────────────────────────────────
+audit*.json
+audit*.md
 demo-audit.json
 demo-audit.md

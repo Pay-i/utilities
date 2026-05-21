@@ -6,17 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-21
+
 ### Added
+- Databricks-shim detection: `lmChatOpenAi` nodes whose `baseURL` (or
+  linked `openAiApi` credential URL) targets a Databricks workspace
+  hostname are reclassified as `chat_model_databricks` and migrated to
+  `n8n-nodes-payi.lmChatPayiDatabricks`.
+- `--databricks-cloud` and `--databricks-credential-id` CLI flags on
+  the migrator for non-interactive Databricks runs.
+- `resolve_payi_databricks_credential()` helper picks (or creates) a
+  `payiDatabricksApi` credential once per migration; reused across all
+  shim node replacements.
+- Audit script recognizes `n8n-nodes-payi.lmChatPayiDatabricks` and the
+  `payiDatabricksApi` credential type so workflows already on the new
+  Databricks proxy node show up correctly in audit reports.
+- `KNOWN_PAYI_CREDENTIAL_TYPES` mapping in the audit script tags Pay-i
+  credentials with `already_payi_credential=true`.
+- Test fixtures `test-workflow-databricks-shim.json` and
+  `test-workflow-payi-databricks.json` plus expanded test coverage
+  (shim detection, shim builder, credential resolver, end-to-end
+  migration, audit-side recognition).
 - Documentation cross-linking and navigation across all user-facing docs
-- `CLAUDE.md` project guidance file
 - `SBOM.md` software bill of materials
 - `CHANGELOG.md` (this file)
 
 ### Changed
+- Audit script display labels for Pay-i nodes match upstream
+  `n8n-nodes-payi` v1.0.1 ("Pay-i OpenAI (Proxy)", "Pay-i Anthropic
+  (Proxy)", "Pay-i Azure AI Foundry (Proxy)", "Pay-i Amazon Bedrock
+  (Proxy)", "Pay-i Databricks (Proxy)").
+- The community-node Databricks builder is now
+  `build_payi_chat_model_databricks_community_node` to disambiguate
+  from the new shim-path builder; dispatch chooses by inspecting
+  `databricks_shim` on the discovered node entry.
 - Root `README.md` expanded with full documentation table
 - `docs/README.md` rewritten as structured documentation hub with reading order
 - All doc pages now include navigation headers and "See Also" footers
-- `.gitignore` updated to cover standard project artifacts
+- `.gitignore` updated to cover standard project artifacts, env files,
+  virtualenvs, IDE artifacts, build outputs, and local working directories
 
 ## [0.3.0] - 2026-03-06
 

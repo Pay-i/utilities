@@ -1,0 +1,51 @@
+{
+  "id": "wf-dbx-shim",
+  "name": "Mixed OpenAI + Databricks Shim",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {}
+    },
+    {
+      "id": "agent-1",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [600, 300],
+      "parameters": {"text": "={{ $json.input }}", "options": {}}
+    },
+    {
+      "id": "dbx-shim-1",
+      "name": "Databricks Shim",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [600, 500],
+      "parameters": {
+        "model": "databricks-claude-sonnet-4-6",
+        "options": {
+          "baseURL": "https://example.cloud.databricks.com/serving-endpoints/x/invocations",
+          "temperature": 0.5
+        }
+      },
+      "credentials": {"openAiApi": {"id": "cred-oai-shim", "name": "DBX-as-OpenAI"}}
+    },
+    {
+      "id": "plain-oai-1",
+      "name": "Plain OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [800, 500],
+      "parameters": {"model": "gpt-4o", "options": {"temperature": 0.7}},
+      "credentials": {"openAiApi": {"id": "cred-oai-real", "name": "OpenAI"}}
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {"main": [[{"node": "AI Agent", "type": "main", "index": 0}]]},
+    "Databricks Shim": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 0}]]},
+    "Plain OpenAI": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 1}]]}
+  }
+}

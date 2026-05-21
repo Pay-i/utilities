@@ -23,6 +23,7 @@ This toolkit uses only the Python standard library. There are no third-party run
 | `sys` | Exit codes and stdout/stderr |
 | `unittest` | Test framework |
 | `urllib.request` / `urllib.error` | HTTP calls to n8n and Pay-i APIs |
+| `urllib.parse` | Hostname extraction for Databricks shim detection |
 
 ## Dev/Test Dependencies
 
@@ -43,4 +44,4 @@ This toolkit uses only the Python standard library. There are no third-party run
 |---------|---------|---------|---------|
 | [n8n-nodes-payi](https://github.com/Pay-i/n8n-nodes-payi) | >=0.3.0 | MIT | Pay-i community nodes for n8n (required for node replacement strategy) |
 
-Last updated: 2026-03-20
+Last updated: 2026-05-21
